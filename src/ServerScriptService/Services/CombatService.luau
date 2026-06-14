@@ -72,10 +72,16 @@ end
 -- Falls back to a generated blade Part when the asset can't be loaded
 -- (e.g. Studio API access disabled). Either way the player gets a working Tool.
 -- ---------------------------------------------------------------------------
+-- no weapon should exceed ~2x character height (~10 studs)
+local MAX_WEAPON_LENGTH = 9
+
 local function buildPlaceholderHandle(info: WeaponConfig.WeaponInfo): BasePart
+	-- vertical blade: long axis along Y so it sits upright in the hand by default,
+	-- length capped so big weapons never become absurd.
+	local length = math.clamp(info.reach * 0.5 * info.sizeMult, 3, MAX_WEAPON_LENGTH)
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
-	handle.Size = Vector3.new(0.6, 0.6, math.clamp(info.reach * 0.5, 3, 8)) * info.sizeMult
+	handle.Size = Vector3.new(0.5, length, 0.5)
 	handle.Color = info.materialColor
 	handle.Material = Enum.Material.Metal
 	handle.TopSurface = Enum.SurfaceType.Smooth
@@ -140,18 +146,25 @@ local function loadModelHandle(info: WeaponConfig.WeaponInfo): BasePart
 	end)
 	if ok and modelOrErr then
 		local container = modelOrErr :: Instance
-		-- find a primary part to use as the handle
-		local primary: BasePart? = nil
-		local model = container:FindFirstChildWhichIsA("Model")
-		if model then
-			primary = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
-		else
-			primary = container:FindFirstChildWhichIsA("BasePart", true)
-		end
+		local model = container:FindFirstChildWhichIsA("Model") or container
+		-- Scale the WHOLE model proportionally (Model:ScaleTo scales every part,
+		-- unlike resizing a single Handle) so the displayed weapon is a consistent
+		-- size driven by sizeMult but capped at MAX_WEAPON_LENGTH.
+		pcall(function()
+			if model:IsA("Model") then
+				local ext = model:GetExtentsSize()
+				local longest = math.max(ext.X, ext.Y, ext.Z)
+				if longest > 0.1 then
+					local target = math.clamp(4 * info.sizeMult, 2, MAX_WEAPON_LENGTH)
+					model:ScaleTo(target / longest)
+				end
+			end
+		end)
+		local primary: BasePart? = (model:IsA("Model") and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)))
+			or container:FindFirstChildWhichIsA("BasePart", true)
 		if primary then
-			-- promote `primary` to the Handle and pull every other part under it
-			-- (welded) so they travel with the handle when we detach from the
-			-- loaded container. Order matters: reparent BEFORE destroying the
+			-- promote `primary` to the Handle and weld every other part under it
+			-- so they travel with the handle. Reparent BEFORE destroying the
 			-- container, otherwise destroying the container destroys the handle.
 			local handle = primary
 			handle.Name = "Handle"
@@ -166,10 +179,10 @@ local function loadModelHandle(info: WeaponConfig.WeaponInfo): BasePart
 					part.Parent = handle
 				end
 			end
-			handle.Anchored = false
+			handle.Anchored = false -- moves with the character's hand
 			handle.CanCollide = false
-			handle.Size = handle.Size * info.sizeMult
-			handle.Parent = nil -- detach handle (and its now-children) safely
+			handle.Massless = true
+			handle.Parent = nil
 			container:Destroy()
 			applyVisuals(handle, info)
 			return handle
@@ -180,6 +193,28 @@ local function loadModelHandle(info: WeaponConfig.WeaponInfo): BasePart
 	local handle = buildPlaceholderHandle(info)
 	applyVisuals(handle, info)
 	return handle
+end
+
+-- Per-weapon-type grip position so the Blade sits in the hand, not the chest.
+local GRIP_POS = {
+	-- swords held upright
+	Sword = Vector3.new(0, -1, 0), Katana = Vector3.new(0, -1, 0), Dagger = Vector3.new(0, -1, 0),
+	-- blunt, slight low grip
+	["Battle Axe"] = Vector3.new(0, -0.5, 0), ["War Hammer"] = Vector3.new(0, -0.5, 0), Mace = Vector3.new(0, -0.5, 0),
+	-- staffs/wands/bows held tall
+	["Magic Staff"] = Vector3.new(0, -1.5, 0), Wand = Vector3.new(0, -1.5, 0), Bow = Vector3.new(0, -1.5, 0),
+	-- polearms held long
+	Scythe = Vector3.new(0, -2, 0), Trident = Vector3.new(0, -2, 0), Spear = Vector3.new(0, -2, 0), Lance = Vector3.new(0, -2, 0),
+	-- close to body
+	Gauntlet = Vector3.new(0, 0, 0), Shield = Vector3.new(0, 0, 0),
+}
+
+local function applyGrip(tool: Tool, info: WeaponConfig.WeaponInfo)
+	tool.GripPos = GRIP_POS[info.baseType] or Vector3.new(0, -1, 0)
+	-- orient so the blade's long (Y) axis points up out of the hand
+	tool.GripForward = Vector3.new(0, 0, -1)
+	tool.GripRight = Vector3.new(1, 0, 0)
+	tool.GripUp = Vector3.new(0, 1, 0)
 end
 
 -- Build a Tool for the player's currently equipped weapon and attach it.
@@ -223,6 +258,7 @@ function CombatService.equip(player: Player)
 
 	local handle = loadModelHandle(info)
 	handle.Parent = tool
+	applyGrip(tool, info)
 
 	-- Put the tool in the Backpack and equip via the Humanoid. This is the
 	-- reliable path — parenting a Tool straight to the character only equips it
