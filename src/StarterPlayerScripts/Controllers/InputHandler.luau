@@ -47,12 +47,15 @@ function InputHandler.init()
 		return best
 	end
 
+	print("[Blade Legends] InputHandler bound (I=inventory, B=shop, L=leaderboard, C=cases, K=arenas, P=settings)")
+
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if processed then
 			return
 		end
 		local screen = KEYMAP[input.KeyCode]
 		if screen then
+			print("[Blade Legends] menu key:", input.KeyCode.Name, "->", screen)
 			UIManager.toggle(screen)
 		elseif input.KeyCode == Enum.KeyCode.T then
 			-- T initiates a trade with the nearest player (E is the Dash Strike ability)

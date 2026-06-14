@@ -56,16 +56,24 @@ function UIManager.init()
 	}
 	UIManager.ctx = ctx
 
-	-- build screens
-	screens.hud = MainHUD.build(ctx)
-	screens.inventory = Inventory.build(ctx)
-	screens.cases = CaseOpening.build(ctx)
-	screens.shop = Shop.build(ctx)
-	screens.leaderboard = Leaderboard.build(ctx)
-	screens.ranked = RankedQueue.build(ctx)
-	screens.trade = Trade.build(ctx)
-	screens.abilities = AbilityBar.build(ctx)
-	screens.settings = Settings.build(ctx)
+	-- build screens — each isolated so one failing screen can't abort the rest
+	local function buildScreen(name: string, mod: any)
+		local ok, s = pcall(mod.build, ctx)
+		if ok then
+			screens[name] = s
+		else
+			warn(("[Blade Legends] screen '%s' build failed: %s"):format(name, tostring(s)))
+		end
+	end
+	buildScreen("hud", MainHUD)
+	buildScreen("inventory", Inventory)
+	buildScreen("cases", CaseOpening)
+	buildScreen("shop", Shop)
+	buildScreen("leaderboard", Leaderboard)
+	buildScreen("ranked", RankedQueue)
+	buildScreen("trade", Trade)
+	buildScreen("abilities", AbilityBar)
+	buildScreen("settings", Settings)
 
 	-- ===== transient UI =====
 	-- notifications (stack, bottom-left above hotkey strip)
@@ -342,6 +350,8 @@ function UIManager.toggle(name: string)
 	local s = screens[name]
 	if s and s.toggle then
 		s.toggle()
+	else
+		warn(("[Blade Legends] toggle('%s') — screen missing or has no toggle()"):format(name))
 	end
 end
 
