@@ -36,12 +36,15 @@ function UIManager.init()
 		root = gui,
 		event = Net.event,
 		func = Net.func,
+		-- shared client state read by several screens
+		state = { inCombat = false, equippedId = nil :: number? },
 		offerToTrade = function(weaponId: number)
 			if screens.trade then
 				screens.trade.offer(weaponId)
 			end
 		end,
 	}
+	UIManager.ctx = ctx
 
 	-- build screens
 	screens.hud = MainHUD.build(ctx)
@@ -81,6 +84,10 @@ function UIManager.init()
 			task.wait(0.4)
 			toast:Destroy()
 		end)
+	end
+	-- let screens raise their own toasts
+	ctx.notify = function(text: string, color: Color3?)
+		notify({ text = text, color = color or UIKit.Colors.bad, duration = 2.5 })
 	end
 
 	-- announcement banner (top center)
@@ -138,6 +145,17 @@ function UIManager.init()
 	Net.event("UpdateHUD").OnClientEvent:Connect(function(data)
 		screens.hud.update(data)
 		screens.ranked.updateRank(data)
+		-- update shared state for the inventory (equipped badge + combat lock)
+		ctx.state.equippedId = data.equipped and data.equipped.id or nil
+		if data.inCasual ~= nil then
+			ctx.state.inCombat = data.inCasual == true
+		end
+		if screens.inventory and screens.inventory.onHud then
+			screens.inventory.onHud(data)
+		end
+		if screens.abilities and screens.abilities.onHud then
+			screens.abilities.onHud(data)
+		end
 	end)
 	Net.event("Notification").OnClientEvent:Connect(notify)
 	Net.event("Announcement").OnClientEvent:Connect(announce)
@@ -145,6 +163,10 @@ function UIManager.init()
 	Net.event("CaseResult").OnClientEvent:Connect(function(data)
 		screens.cases.open()
 		screens.cases.onResult(data)
+		-- a new weapon arrived: refresh the inventory grid so it shows up
+		if screens.inventory and screens.inventory.refresh then
+			task.delay(0.2, screens.inventory.refresh)
+		end
 	end)
 	Net.event("RecentPull").OnClientEvent:Connect(function(data)
 		notify({ text = ("%s pulled %s"):format(data.player, data.weapon), color = data.rarityColor, duration = 3, small = true })
@@ -155,6 +177,12 @@ function UIManager.init()
 	Net.event("MatchState").OnClientEvent:Connect(function(data)
 		screens.ranked.onMatchState(data)
 		screens.ranked.panel.Visible = true
+		-- ranked combat lock for the inventory
+		if data.ended then
+			ctx.state.inCombat = false
+		elseif data.active ~= nil then
+			ctx.state.inCombat = data.active == true
+		end
 	end)
 	Net.event("TradeAction").OnClientEvent:Connect(function(data)
 		screens.trade.onAction(data)
