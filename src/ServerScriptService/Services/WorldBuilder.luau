@@ -494,7 +494,15 @@ local function portal(name: string, position: Vector3, color: Color3, target: CF
 			end
 			task.wait(0.22)
 			if hrp and hrp.Parent then
-				hrp.CFrame = targetCFrame
+				hrp.CFrame = targetCFrame + Vector3.new(0, 1, 0)
+				-- 1s spawn protection (CombatService.dealDamage respects this)
+				player:SetAttribute("ProtectUntil", os.clock() + 1)
+				-- safety: if physics shoved them far from the spawn, re-place
+				task.delay(0.15, function()
+					if hrp.Parent and (hrp.Position - targetCFrame.Position).Magnitude > 25 then
+						hrp.CFrame = targetCFrame + Vector3.new(0, 2, 0)
+					end
+				end)
 			end
 		end
 	end)
@@ -909,12 +917,12 @@ local function buildHub(world: Instance): (SurfaceGui, SurfaceGui)
 	-- six glowing portal arches around the plaza, facing center
 	local portalR = 72
 	local portalDefs = {
-		{ name = "Crates", ang = 90, color = Color3.fromRGB(70, 130, 255), target = WorldConfig.CaseArea.spawn },
-		{ name = "Leaderboard Hall", ang = 30, color = Color3.fromRGB(255, 200, 70), target = WorldConfig.LeaderboardHall.spawn },
-		{ name = "Weapon Hall", ang = 330, color = Color3.fromRGB(180, 90, 255), target = WorldConfig.WeaponHall.spawn },
-		{ name = "Trading Post", ang = 270, color = Color3.fromRGB(245, 220, 80), target = WorldConfig.Trading.spawn },
-		{ name = "Ranked Arena", ang = 210, color = Color3.fromRGB(255, 70, 80), target = WorldConfig.Ranked.lobby },
-		{ name = "Casual Arena", ang = 150, color = Color3.fromRGB(90, 220, 120), target = CFrame.new(WorldConfig.Casual.center + Vector3.new(0, 4, -(WorldConfig.Casual.radius - 10))) },
+		{ name = "Crates", ang = 90, color = Color3.fromRGB(70, 130, 255), target = WorldConfig.ZoneSpawns.Crates },
+		{ name = "Leaderboard Hall", ang = 30, color = Color3.fromRGB(255, 200, 70), target = WorldConfig.ZoneSpawns.LeaderboardHall },
+		{ name = "Weapon Hall", ang = 330, color = Color3.fromRGB(180, 90, 255), target = WorldConfig.ZoneSpawns.WeaponHall },
+		{ name = "Trading Post", ang = 270, color = Color3.fromRGB(245, 220, 80), target = WorldConfig.ZoneSpawns.Trading },
+		{ name = "Ranked Arena", ang = 210, color = Color3.fromRGB(255, 70, 80), target = WorldConfig.ZoneSpawns.Ranked },
+		{ name = "Casual Arena", ang = 150, color = Color3.fromRGB(90, 220, 120), target = WorldConfig.ZoneSpawns.Casual },
 	}
 	for _, d in portalDefs do
 		local rad = math.rad(d.ang)
@@ -1123,7 +1131,7 @@ local function buildCaseRoom(world: Instance)
 	sl2.Text = "CASE OPENING ROOM"
 	sl2.Parent = ssg
 
-	portal("Hub", c + Vector3.new(0, 0, 40), Color3.fromRGB(120, 200, 255), WorldConfig.Hub.spawn, m, c)
+	portal("Hub", c + Vector3.new(0, 0, 40), Color3.fromRGB(120, 200, 255), WorldConfig.ZoneSpawns.Hub, m, c)
 end
 
 local function buildCasualArena(world: Instance)
@@ -1209,7 +1217,7 @@ local function buildCasualArena(world: Instance)
 	part({ Name = "ArenaCross", Size = Vector3.new(1.5, 0.3, r * 1.1), Position = c + Vector3.new(0, 0.3, 0), Color = Color3.fromRGB(230, 200, 150), Material = Enum.Material.Neon, Transparency = 0.4, Parent = m })
 	ambientSound("casual", c + Vector3.new(0, 10, 0), 0.3, m)
 
-	portal("Hub", c + Vector3.new(0, 0, -r - 10), Color3.fromRGB(120, 200, 255), WorldConfig.Hub.spawn, m, c)
+	portal("Hub", c + Vector3.new(0, 0, -r - 10), Color3.fromRGB(120, 200, 255), WorldConfig.ZoneSpawns.Hub, m, c)
 end
 
 local function buildRankedArena(world: Instance)
@@ -1293,7 +1301,7 @@ local function buildRankedArena(world: Instance)
 	end
 	ambientSound("ranked", c + Vector3.new(0, 10, 0), 0.18, m)
 
-	portal("Hub", c + Vector3.new(0, 0, 44), Color3.fromRGB(120, 200, 255), WorldConfig.Hub.spawn, m, c)
+	portal("Hub", c + Vector3.new(0, 0, 44), Color3.fromRGB(120, 200, 255), WorldConfig.ZoneSpawns.Hub, m, c)
 end
 
 local function buildTradingPost(world: Instance)
@@ -1374,7 +1382,7 @@ local function buildTradingPost(world: Instance)
 	ambientSound("trading", c + Vector3.new(0, 10, 0), 0.22, m)
 
 	signBoard("🤝 TRADING POST  (press T near a player)", c + Vector3.new(0, 9, -33), Color3.fromRGB(255, 220, 90), m, 0)
-	portal("Hub", c + Vector3.new(0, 0, 33), Color3.fromRGB(120, 200, 255), WorldConfig.Hub.spawn, m, c)
+	portal("Hub", c + Vector3.new(0, 0, 33), Color3.fromRGB(120, 200, 255), WorldConfig.ZoneSpawns.Hub, m, c)
 end
 
 local function buildWeaponHall(world: Instance)
@@ -1450,7 +1458,7 @@ local function buildWeaponHall(world: Instance)
 	-- tag the hall so the client can apply purple fog while inside
 	m:SetAttribute("FogZone", true)
 	ambientSound("weaponHall", c + Vector3.new(0, 10, 0), 0.2, m)
-	portal("Hub", c + Vector3.new(0, 0, -63), Color3.fromRGB(120, 200, 255), WorldConfig.Hub.spawn, m, c)
+	portal("Hub", c + Vector3.new(0, 0, -63), Color3.fromRGB(120, 200, 255), WorldConfig.ZoneSpawns.Hub, m, c)
 end
 
 local function buildLeaderboardHall(world: Instance): SurfaceGui
@@ -1530,7 +1538,7 @@ local function buildLeaderboardHall(world: Instance): SurfaceGui
 	ambientSound("leaderboard", c + Vector3.new(0, 10, 0), 0.18, m)
 
 	signBoard("🏆 HALL OF FAME 🏆", c + Vector3.new(0, 26, -39), Color3.fromRGB(255, 215, 80), m, 0)
-	portal("Hub", c + Vector3.new(0, 0, 39), Color3.fromRGB(120, 200, 255), WorldConfig.Hub.spawn, m, c)
+	portal("Hub", c + Vector3.new(0, 0, 39), Color3.fromRGB(120, 200, 255), WorldConfig.ZoneSpawns.Hub, m, c)
 	return boardGui
 end
 

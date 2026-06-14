@@ -66,4 +66,21 @@ function WorldConfig.casualSpawn(i: number): CFrame
 	return CFrame.new(Vector3.new(x, c.Y + 1, z), c)
 end
 
+-- Explicit, well-inside-the-walls spawn CFrames for each zone (floor level,
+-- facing the zone centre). Portals teleport here so players never land outside a
+-- zone or inside a wall.
+local function lookFlat(from: Vector3, toward: Vector3): CFrame
+	return CFrame.lookAt(from, Vector3.new(toward.X, from.Y, toward.Z))
+end
+
+WorldConfig.ZoneSpawns = {
+	Hub = lookFlat(Vector3.new(0, 8, 18), WorldConfig.Hub.center),
+	Crates = lookFlat(Vector3.new(260, 8, 28), WorldConfig.CaseArea.center),
+	Casual = lookFlat(Vector3.new(-320, 8, -45), WorldConfig.Casual.center),
+	Ranked = lookFlat(Vector3.new(-20, 8, 320), WorldConfig.Ranked.center),
+	Trading = lookFlat(Vector3.new(0, 8, -252), WorldConfig.Trading.center),
+	WeaponHall = lookFlat(Vector3.new(360, 8, 168), WorldConfig.WeaponHall.center),
+	LeaderboardHall = lookFlat(Vector3.new(-360, 8, 188), WorldConfig.LeaderboardHall.center),
+}
+
 return WorldConfig

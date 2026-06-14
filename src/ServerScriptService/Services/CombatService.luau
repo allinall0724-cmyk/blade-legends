@@ -648,6 +648,10 @@ function dealDamage(attacker: Player, victim: Player, amount: number, color: Col
 	if now < oState.dodgeUntil then
 		return false
 	end
+	-- post-teleport spawn protection (set by the portal teleport)
+	if now < (victim:GetAttribute("ProtectUntil") or 0) then
+		return false
+	end
 	-- invincibility (+ optional reflect)
 	if now < oState.invincibleUntil then
 		if now < oState.reflectUntil then
