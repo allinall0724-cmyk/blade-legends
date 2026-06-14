@@ -431,23 +431,35 @@ local function portal(name: string, position: Vector3, color: Color3, target: CF
 		Material = Enum.Material.Slate,
 		Parent = model,
 	})
-	-- solid wall behind the arch so you can't see the destination zone through it
+	-- Large, thick, solid black backdrop directly behind the arch so that from the
+	-- hub you ONLY see the glowing door — nothing of the world beyond is visible.
 	part({
-		Name = "PortalWall",
-		Size = Vector3.new(24, 22, 1.5),
-		CFrame = baseCF * CFrame.new(0, 11, -1),
-		Color = Color3.fromRGB(55, 52, 50),
-		Material = Enum.Material.Slate,
+		Name = "PortalBackdrop",
+		Size = Vector3.new(46, 40, 4),
+		CFrame = baseCF * CFrame.new(0, 18, -2),
+		Color = Color3.fromRGB(8, 8, 10),
+		Material = Enum.Material.SmoothPlastic,
 		Parent = model,
 	})
-	-- glowing neon door
+	-- side wings angled forward, blocking peripheral sightlines past the arch
+	for _, sx in { -1, 1 } do
+		part({
+			Name = "PortalWing",
+			Size = Vector3.new(20, 40, 4),
+			CFrame = baseCF * CFrame.new(sx * 22, 18, 6) * CFrame.Angles(0, sx * math.rad(55), 0),
+			Color = Color3.fromRGB(8, 8, 10),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = model,
+		})
+	end
+	-- glowing semi-transparent neon door the player walks through
 	local door = part({
 		Name = "PortalDoor",
-		Size = Vector3.new(9, 15, 0.6),
-		CFrame = baseCF * CFrame.new(0, 8.5, -0.2),
+		Size = Vector3.new(9, 15, 1),
+		CFrame = baseCF * CFrame.new(0, 8.5, -0.4),
 		Color = color,
 		Material = Enum.Material.Neon,
-		Transparency = 0.35,
+		Transparency = 0.4,
 		CanCollide = false,
 		Parent = model,
 	})
@@ -1473,6 +1485,39 @@ local function buildLeaderboardHall(world: Instance): SurfaceGui
 	return boardGui
 end
 
+-- Wrap a finished zone model in a solid, thick, fully-sealed box (floor, ceiling,
+-- four walls) sized to its bounding box. Guarantees no gaps anywhere and hides the
+-- interior from outside — players enter/leave only via the portal teleports.
+local function encloseZone(model: Model, wallColor: Color3?)
+	local ok, cf, size = pcall(function()
+		local c, s = model:GetBoundingBox()
+		return c, s
+	end)
+	if not ok or not cf then
+		return
+	end
+	local center = cf.Position
+	local t = 4 -- thick walls (>= 4 studs, no thin-wall gaps)
+	local pad = 6
+	local hx = size.X / 2 + pad
+	local hy = size.Y / 2 + pad
+	local hz = size.Z / 2 + pad
+	local color = wallColor or Color3.fromRGB(26, 26, 32)
+	local box = Instance.new("Model")
+	box.Name = "Enclosure"
+	box.Parent = model
+
+	local function wall(sz: Vector3, off: Vector3)
+		part({ Name = "ZoneWall", Size = sz, Position = center + off, Color = color, Material = Enum.Material.Slate, Parent = box })
+	end
+	wall(Vector3.new(hx * 2 + t * 2, t, hz * 2 + t * 2), Vector3.new(0, -hy, 0)) -- floor
+	wall(Vector3.new(hx * 2 + t * 2, t, hz * 2 + t * 2), Vector3.new(0, hy, 0)) -- ceiling
+	wall(Vector3.new(t, hy * 2, hz * 2), Vector3.new(hx, 0, 0)) -- +X
+	wall(Vector3.new(t, hy * 2, hz * 2), Vector3.new(-hx, 0, 0)) -- -X
+	wall(Vector3.new(hx * 2, hy * 2, t), Vector3.new(0, 0, hz)) -- +Z
+	wall(Vector3.new(hx * 2, hy * 2, t), Vector3.new(0, 0, -hz)) -- -Z
+end
+
 -- ===========================================================================
 -- public entry
 -- ===========================================================================
@@ -1510,6 +1555,15 @@ function WorldBuilder.build(): { board: SurfaceGui, recentTicker: SurfaceGui, fa
 	buildTradingPost(world)
 	buildWeaponHall(world)
 	local fameBoard = buildLeaderboardHall(world)
+
+	-- Seal every non-hub zone in a solid box so no interior is visible from
+	-- outside and there are no gaps anywhere.
+	for _, zoneName in { "CaseArea", "CasualArena", "RankedArena", "TradingPost", "WeaponHall", "LeaderboardHall" } do
+		local zone = world:FindFirstChild(zoneName)
+		if zone and zone:IsA("Model") then
+			encloseZone(zone)
+		end
+	end
 
 	-- slow day/night cycle: one full sweep every 10 minutes
 	task.spawn(function()
