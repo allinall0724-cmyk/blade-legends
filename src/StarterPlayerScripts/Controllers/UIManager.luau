@@ -239,6 +239,49 @@ function UIManager.init()
 		screens.abilities.onFlash(data)
 	end)
 
+	-- conversion / promo popups (starter pack, low-coin, streak saver, etc.)
+	Net.event("PromoPopup").OnClientEvent:Connect(function(data)
+		if typeof(data) ~= "table" then
+			return
+		end
+		local pop = UIKit.create("Frame", {
+			Size = UDim2.fromOffset(420, 200),
+			Position = UDim2.new(0.5, -210, 0.5, -100),
+			BackgroundColor3 = UIKit.Colors.bg,
+			BorderSizePixel = 0,
+			ZIndex = 60,
+			Parent = gui,
+		}, { UIKit.corner(12), UIKit.create("UIStroke", { Color = data.color or UIKit.Colors.accent, Thickness = 2.5 }) })
+		UIKit.create("TextLabel", {
+			Size = UDim2.new(1, -20, 0, 44), Position = UDim2.fromOffset(10, 10), BackgroundTransparency = 1,
+			Font = Enum.Font.GothamBold, TextScaled = true, TextWrapped = true, ZIndex = 61,
+			TextColor3 = data.color or UIKit.Colors.accent, Text = tostring(data.title or "Offer"), Parent = pop,
+		})
+		UIKit.create("TextLabel", {
+			Size = UDim2.new(1, -20, 0, 70), Position = UDim2.fromOffset(10, 58), BackgroundTransparency = 1,
+			Font = Enum.Font.Gotham, TextSize = 16, TextWrapped = true, ZIndex = 61,
+			TextColor3 = UIKit.Colors.text, Text = tostring(data.body or ""), Parent = pop,
+		})
+		if data.productKey then
+			local buy = UIKit.button(("Get it — R$ %s"):format(tostring(data.robux or "")), UDim2.new(0.6, -14, 0, 44), UDim2.new(0, 10, 1, -54), UIKit.Colors.good, function()
+				Net.event("BuyProduct"):FireServer({ productKey = data.productKey })
+				pop:Destroy()
+			end)
+			buy.ZIndex = 61
+			buy.Parent = pop
+		end
+		local close = UIKit.button("No thanks", UDim2.new(0.4, -14, 0, 44), UDim2.new(0.6, 4, 1, -54), UIKit.Colors.panelLight, function()
+			pop:Destroy()
+		end)
+		close.ZIndex = 61
+		close.Parent = pop
+		task.delay(20, function()
+			if pop and pop.Parent then
+				pop:Destroy()
+			end
+		end)
+	end)
+
 	-- kill popup ("+1 Kill — +N Coins")
 	Net.event("KillNotify").OnClientEvent:Connect(function(data)
 		SoundController.play("kill", 0.8)

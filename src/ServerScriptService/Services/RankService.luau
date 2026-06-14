@@ -33,6 +33,8 @@ local WIN_KILLS = 3
 
 -- HUD push hook (set by GameManager)
 RankService._pushHud = function(_player: Player) end
+-- streak-saver hook (set by GameManager -> MonetizationService.streakSaver)
+RankService._onRankedLoss = function(_player: Player) end
 
 -- ---------------------------------------------------------------------------
 -- Combat permission: two players may fight if they're in the same ranked match.
@@ -122,6 +124,13 @@ local function endMatch(m: Match, winner: Player, loser: Player)
 		wProf.rankRating = math.max(0, wProf.rankRating + wDelta)
 		wProf.totalWins += 1
 
+		-- Rank Boost product: +50 bonus rating on the next ranked win
+		if wProf.rankBoostPending then
+			wProf.rankBoostPending = false
+			wProf.rankRating += 50
+			Net.event("Notification"):FireClient(winner, { text = "Rank Boost! +50 bonus rating", color = Color3.fromRGB(120, 200, 255) })
+		end
+
 		-- Instant Rank Shield protects against a loss
 		if lProf.rankShieldCharges and lProf.rankShieldCharges > 0 then
 			lProf.rankShieldCharges -= 1
@@ -131,6 +140,8 @@ local function endMatch(m: Match, winner: Player, loser: Player)
 			})
 		else
 			lProf.rankRating = math.max(0, lProf.rankRating + lDelta)
+			-- streak-saver promo for long-streak players who just lost rating
+			RankService._onRankedLoss(loser)
 		end
 
 		-- track season high

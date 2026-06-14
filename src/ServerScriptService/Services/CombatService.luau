@@ -299,6 +299,37 @@ local function setupCharacter(player: Player, character: Model)
 		name.Text = player.DisplayName
 		name.Parent = bg
 
+		-- pass chat tag (sits just above the name, never clobbers leaderboard text)
+		local tagLabel = Instance.new("TextLabel")
+		tagLabel.Name = "PassTag"
+		tagLabel.Size = UDim2.new(1, 0, 0.42, 0)
+		tagLabel.Position = UDim2.new(0, 0, -0.5, 0)
+		tagLabel.BackgroundTransparency = 1
+		tagLabel.Font = Enum.Font.GothamBlack
+		tagLabel.TextScaled = true
+		tagLabel.TextStrokeTransparency = 0.4
+		tagLabel.Visible = false
+		tagLabel.Parent = bg
+
+		local function refreshName()
+			local tag = player:GetAttribute("ChatTag")
+			local tagColor = player:GetAttribute("TagColor")
+			local nameColor = player:GetAttribute("NameColor")
+			if typeof(nameColor) == "Color3" then
+				name.TextColor3 = nameColor
+			end
+			if typeof(tag) == "string" and tag ~= "" then
+				tagLabel.Text = "[" .. tag .. "]"
+				tagLabel.TextColor3 = (typeof(tagColor) == "Color3" and tagColor) or Color3.fromRGB(255, 200, 70)
+				tagLabel.Visible = true
+			else
+				tagLabel.Visible = false
+			end
+		end
+		refreshName()
+		player:GetAttributeChangedSignal("ChatTag"):Connect(refreshName)
+		player:GetAttributeChangedSignal("NameColor"):Connect(refreshName)
+
 		-- health bar
 		local barBg = Instance.new("Frame")
 		barBg.Name = "HealthBg"

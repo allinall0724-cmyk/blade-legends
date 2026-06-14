@@ -39,6 +39,8 @@ Net.Events = {
 	"AbilityFlash",      -- server -> client : {name, color} ability-name flash
 	"ComboUpdate",       -- server -> client : {count} combo counter
 	"KillNotify",        -- server -> client : {coins?} you-got-a-kill popup
+	"PromoPopup",        -- server -> client : {kind,title,body,productKey?,robux?,color?}
+	"PickNameColor",     -- client -> server : {idx} choose name-tag color
 }
 
 -- RemoteFunctions (request/response).

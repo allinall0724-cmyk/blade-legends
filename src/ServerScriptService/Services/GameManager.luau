@@ -285,6 +285,11 @@ function GameManager.init()
 	TradeService._pushHud = pushHud
 	MonetizationService._pushHud = pushHud
 
+	-- conversion-psychology hooks
+	CaseService._onLowCoins = MonetizationService.lowCoinAlert
+	CaseService._onLegendary = MonetizationService.vipSpotlight
+	RankService._onRankedLoss = MonetizationService.streakSaver
+
 	-- physical board updates (hub board + Hall of Fame board)
 	LeaderboardService._updateBoard = function(entries)
 		updateBoardUI(refs.board, entries)

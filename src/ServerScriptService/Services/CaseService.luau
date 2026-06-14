@@ -46,6 +46,10 @@ local function doOpen(player: Player, caseId: string)
 			text = "Not enough coins for " .. case.name,
 			color = RarityConfig.getColor("Mythic"),
 		})
+		-- low-coin alert popup if they're more than halfway short
+		if profile.coins < case.cost * 0.5 then
+			CaseService._onLowCoins(player, case.cost, profile.coins)
+		end
 		return
 	end
 
@@ -114,6 +118,8 @@ local function doOpen(player: Player, caseId: string)
 			text = ("%s just unboxed a %s %s!"):format(player.DisplayName, rarity, info and info.name or "weapon"),
 			color = RarityConfig.getColor(rarity),
 		})
+		-- VIP spotlight (special once-per-session VIP-tagged shout)
+		CaseService._onLegendary(player, info and info.name or "weapon")
 	end
 
 	-- refresh HUD
@@ -123,6 +129,30 @@ end
 -- set by GameManager so we don't create a circular require
 CaseService._pushHud = function(_player: Player) end
 CaseService._onPull = function(_entry: any) end
+-- conversion hooks (wired to MonetizationService by GameManager)
+CaseService._onLowCoins = function(_player: Player, _needed: number, _have: number) end
+CaseService._onLegendary = function(_player: Player, _weaponName: string) end
+
+-- Grant `count` free opens of a case (no cost) — used by bundle products / passes.
+function CaseService.grant(player: Player, caseId: string, count: number)
+	local case = CaseConfig.Cases[caseId]
+	if not case then
+		return
+	end
+	count = math.max(0, math.floor(count or 0))
+	for _ = 1, count do
+		local rarity = CaseConfig.rollRarity(caseId, rng)
+		local weaponId = WeaponConfig.randomOfRarity(rarity, rng)
+		DataService.addWeapon(player, weaponId)
+	end
+	if count > 0 then
+		Net.event("Notification"):FireClient(player, {
+			text = ("Received %d %s open%s!"):format(count, case.name, count == 1 and "" or "s"),
+			color = Color3.fromRGB(120, 200, 255),
+		})
+		CaseService._pushHud(player)
+	end
+end
 
 function CaseService.init()
 	Net.event("OpenCase").OnServerEvent:Connect(function(player, payload)

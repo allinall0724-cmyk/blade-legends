@@ -39,10 +39,21 @@ export type Profile = {
 	totalWins: number,
 	casesPulled: { basic: number, pro: number, mythic: number },
 	pityCounter: number,
+	pityCounters: { [string]: number },
 	lastLoginDate: string,
 	loginStreak: number,
-	passes: { coins2x: boolean, lucky: boolean, vip: boolean },
+	passes: { [string]: boolean },
 	rankShieldCharges: number,
+	rankBoostPending: boolean,
+	starterExpiry: number,
+	firstPurchaseDone: boolean,
+	mythicHunterGranted: boolean,
+	vipWeekKey: string,
+	vipCaseOpens: number,
+	beginnerLuckDate: string,
+	nameColorIdx: number,
+	nameColorOwned: boolean,
+	joinTime: number,
 }
 
 local function defaultProfile(): Profile
@@ -56,10 +67,26 @@ local function defaultProfile(): Profile
 		totalWins = 0,
 		casesPulled = { basic = 0, pro = 0, mythic = 0 },
 		pityCounter = 0,
+		pityCounters = {}, -- per-case pity, keyed by case id
 		lastLoginDate = "",
 		loginStreak = 0,
-		passes = { coins2x = false, lucky = false, vip = false },
+		-- the six game passes (+ legacy coins2x kept for back-compat)
+		passes = {
+			coins2x = false, lucky = false, vip = false,
+			starter = false, speedDemon = false, coinMagnet = false, mythicHunter = false,
+		},
 		rankShieldCharges = 0,
+		rankBoostPending = false,
+		-- monetization bookkeeping
+		starterExpiry = 0, -- os.time when the Starter Pack 2x ends
+		firstPurchaseDone = false,
+		mythicHunterGranted = false,
+		vipWeekKey = "",
+		vipCaseOpens = 0,
+		beginnerLuckDate = "",
+		nameColorIdx = 0, -- 0 = default white
+		nameColorOwned = false,
+		joinTime = 0, -- set on load; drives the first-10-minutes starter popup
 	}
 end
 
@@ -75,7 +102,7 @@ local function reconcile(profile: any): Profile
 		end
 	end
 	-- nested tables
-	for _, sub in { "casesPulled", "passes" } do
+	for _, sub in { "casesPulled", "passes", "pityCounters" } do
 		if typeof(profile[sub]) ~= "table" then
 			profile[sub] = base[sub]
 		else
@@ -180,6 +207,7 @@ end
 function DataService.load(player: Player)
 	local userId = player.UserId
 	local profile = tryGet(userId)
+	profile.joinTime = os.time()
 	cache[userId] = profile
 	loaded[userId] = true
 	for _, fn in onLoadedCallbacks do
@@ -208,16 +236,33 @@ function DataService.getCoins(player: Player): number
 	return p and p.coins or 0
 end
 
--- Adds coins, applying the 2x / VIP multiplier when `applyMultiplier` is true.
+-- Highest coin multiplier the player's passes grant (does not stack — takes max).
+function DataService.coinMultiplier(player: Player): number
+	local p = cache[player.UserId]
+	if not p then
+		return 1
+	end
+	local mult = 1
+	local passes = p.passes
+	if passes.mythicHunter then
+		mult = math.max(mult, 3)
+	end
+	if passes.coinMagnet or passes.vip or passes.coins2x then
+		mult = math.max(mult, 2)
+	end
+	if passes.starter and p.starterExpiry and os.time() < p.starterExpiry then
+		mult = math.max(mult, 2)
+	end
+	return mult
+end
+
+-- Adds coins, applying the pass coin multiplier when `applyMultiplier` is true.
 function DataService.addCoins(player: Player, amount: number, applyMultiplier: boolean?): number
 	local p = cache[player.UserId]
 	if not p then
 		return 0
 	end
-	local mult = 1
-	if applyMultiplier and (p.passes.coins2x or p.passes.vip) then
-		mult = 2
-	end
+	local mult = applyMultiplier and DataService.coinMultiplier(player) or 1
 	p.coins = math.max(0, math.floor(p.coins + amount * mult))
 	return p.coins
 end
