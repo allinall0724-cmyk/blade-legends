@@ -45,6 +45,7 @@ Net.Events = {
 	"SellBlade",         -- client -> server : {weaponId} sell a Blade for coins
 	"TutorialStep",      -- server -> client : {step,text} new-player tutorial
 	"ClaimFreeCrate",    -- client -> server : claim the daily free crate
+	"TradeFeed",         -- server -> client : {a,aBlade,b,bBlade,legendary} feed entry
 }
 
 -- RemoteFunctions (request/response).

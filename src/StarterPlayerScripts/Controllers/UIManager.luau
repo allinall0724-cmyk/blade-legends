@@ -244,6 +244,14 @@ function UIManager.init()
 	Net.event("TradeAction").OnClientEvent:Connect(function(data)
 		screens.trade.onAction(data)
 	end)
+	-- server trade feed (last completed trades; Legendary+ in gold)
+	Net.event("TradeFeed").OnClientEvent:Connect(function(data)
+		notify({
+			text = ("%s ⇄ %s  (%s / %s)"):format(data.a or "?", data.b or "?", data.aBlade or "?", data.bBlade or "?"),
+			color = data.legendary and Color3.fromRGB(255, 200, 70) or UIKit.Colors.subtext,
+			duration = 4, small = true,
+		})
+	end)
 	Net.event("AbilityState").OnClientEvent:Connect(function(data)
 		screens.abilities.onAbilityState(data)
 	end)

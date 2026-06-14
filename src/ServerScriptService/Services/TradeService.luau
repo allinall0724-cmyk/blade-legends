@@ -13,9 +13,9 @@ local DataService = require(script.Parent.DataService)
 
 local TradeService = {}
 
-local MAX_OFFER = 4
+local MAX_OFFER = 8
 local MAX_DISTANCE = 30 -- studs; must be near each other to start
-local COUNTDOWN = 3
+local COUNTDOWN = 5
 
 type Side = { player: Player, offer: { number }, ready: boolean, accepted: boolean }
 type Session = {
@@ -30,6 +30,8 @@ local sessions: { [number]: Session } = {} -- userId -> session
 local sessionCounter = 0
 
 TradeService._pushHud = function(_player: Player) end
+-- wired to GameManager -> updates the physical Trade Feed board in The Vault
+TradeService._onTrade = function(_entry: any) end
 
 local function sideFor(session: Session, player: Player): (Side?, Side?)
 	if session.a.player == player then
@@ -52,15 +54,19 @@ local function buildView(session: Session, forPlayer: Player)
 		end
 		return out
 	end
+	local function totalVal(ids: { number }): number
+		return WeaponConfig.netWorth(ids)
+	end
 	return {
 		active = not session.finished,
 		sessionId = session.id,
-		you = { offer = infos(mine.offer), ready = mine.ready },
+		you = { offer = infos(mine.offer), ready = mine.ready, totalValue = totalVal(mine.offer) },
 		them = {
 			name = theirs.player.DisplayName,
 			offer = infos(theirs.offer),
 			ready = theirs.ready,
 			accepted = theirs.accepted,
+			totalValue = totalVal(theirs.offer),
 		},
 		countingDown = session.countingDown,
 	}
@@ -132,12 +138,51 @@ local function executeTrade(session: Session)
 		DataService.addWeapon(a.player, id)
 	end
 
-	-- log
-	print(("[Trade] %s <-> %s | %s gave [%s], %s gave [%s]"):format(
-		a.player.Name, b.player.Name,
-		a.player.Name, table.concat(a.offer, ","),
-		b.player.Name, table.concat(b.offer, ",")
-	))
+	-- record trade history (last 20) for both players
+	local aVal = WeaponConfig.netWorth(a.offer)
+	local bVal = WeaponConfig.netWorth(b.offer)
+	local function bladeNames(ids: { number }): string
+		local names = {}
+		for _, id in ids do
+			local info = WeaponConfig.getInfo(id)
+			table.insert(names, info and info.name or "?")
+		end
+		return #names > 0 and table.concat(names, ", ") or "(nothing)"
+	end
+	local date = os.date("!%Y-%m-%d") :: string
+	local function record(prof: any, gaveIds, gotIds, gaveVal, gotVal)
+		if not prof then return end
+		prof.tradeHistory = prof.tradeHistory or {}
+		table.insert(prof.tradeHistory, 1, {
+			date = date, gave = bladeNames(gaveIds), got = bladeNames(gotIds), diff = gotVal - gaveVal,
+		})
+		while #prof.tradeHistory > 20 do
+			table.remove(prof.tradeHistory)
+		end
+	end
+	record(DataService.get(a.player), a.offer, b.offer, aVal, bVal)
+	record(DataService.get(b.player), b.offer, a.offer, bVal, aVal)
+
+	-- server trade feed (last 5, Legendary+ highlighted)
+	local topInfoA = nil
+	for _, id in a.offer do
+		local info = WeaponConfig.getInfo(id)
+		if info and (not topInfoA or info.value > topInfoA.value) then topInfoA = info end
+	end
+	local topInfoB = nil
+	for _, id in b.offer do
+		local info = WeaponConfig.getInfo(id)
+		if info and (not topInfoB or info.value > topInfoB.value) then topInfoB = info end
+	end
+	local legendary = (topInfoA and (topInfoA.rarity == "Legendary" or topInfoA.rarity == "Mythic"))
+		or (topInfoB and (topInfoB.rarity == "Legendary" or topInfoB.rarity == "Mythic")) or false
+	local feedEntry = {
+		a = a.player.DisplayName, aBlade = topInfoA and topInfoA.name or "(coins)",
+		b = b.player.DisplayName, bBlade = topInfoB and topInfoB.name or "(coins)",
+		legendary = legendary,
+	}
+	Net.event("TradeFeed"):FireAllClients(feedEntry)
+	TradeService._onTrade(feedEntry)
 
 	Net.event("Notification"):FireClient(a.player, { text = "Trade complete!", color = Color3.fromRGB(90, 220, 120) })
 	Net.event("Notification"):FireClient(b.player, { text = "Trade complete!", color = Color3.fromRGB(90, 220, 120) })
@@ -241,6 +286,16 @@ local function handleAction(player: Player, payload: any)
 		return
 	end
 
+	if action == "chat" then
+		-- relay a (preset or typed) message to the other player
+		local msg = payload.msg
+		if typeof(msg) == "string" and #msg <= 80 then
+			Net.event("TradeAction"):FireClient(theirs.player, { kind = "chat", from = player.DisplayName, msg = msg })
+			Net.event("TradeAction"):FireClient(player, { kind = "chat", from = player.DisplayName, msg = msg })
+		end
+		return
+	end
+
 	if action == "accept" then
 		mine.accepted = true
 		sync(session)
@@ -294,6 +349,11 @@ function TradeService.init()
 	end)
 
 	Net.event("TradeAction").OnServerEvent:Connect(handleAction)
+
+	Net.func("GetTradeHistory").OnServerInvoke = function(player)
+		local prof = DataService.get(player)
+		return prof and prof.tradeHistory or {}
+	end
 
 	Players.PlayerRemoving:Connect(function(player)
 		local session = sessions[player.UserId]
