@@ -43,9 +43,23 @@ local function pushHud(player: Player)
 	if prof.equippedWeapon then
 		equippedInfo = WeaponConfig.getInfo(prof.equippedWeapon)
 	end
+	-- rarest (highest-value) Blade + Net Worth for the collection HUD
+	local rarestInfo = nil
+	local rarestVal = -1
+	local netWorth = 0
+	for _, id in prof.weapons do
+		local v = WeaponConfig.value(id)
+		netWorth += v
+		if v > rarestVal then
+			rarestVal = v
+			rarestInfo = WeaponConfig.getInfo(id)
+		end
+	end
 	Net.event("UpdateHUD"):FireClient(player, {
 		coins = prof.coins,
 		equipped = equippedInfo,
+		rarest = rarestInfo,
+		netWorth = netWorth,
 		rating = prof.rankRating,
 		tier = RankConfig.getTierName(prof.rankRating),
 		tierColor = RankConfig.getTierColor(prof.rankRating),

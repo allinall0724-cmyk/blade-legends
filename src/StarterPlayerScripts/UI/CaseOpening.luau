@@ -13,7 +13,7 @@ local WeaponConfig = require(ReplicatedStorage.Shared.WeaponConfig)
 local CaseOpening = {}
 
 function CaseOpening.build(ctx: any)
-	local panel, body = UIKit.panel("🎁 Cases  [C]", UDim2.fromOffset(640, 480))
+	local panel, body = UIKit.panel("📦 Crates  [C]", UDim2.fromOffset(640, 480))
 	panel.Parent = ctx.root
 	local self = { panel = panel }
 
@@ -67,7 +67,7 @@ function CaseOpening.build(ctx: any)
 		Font = Enum.Font.GothamBold,
 		TextScaled = true,
 		TextColor3 = UIKit.Colors.text,
-		Text = "Pick a case to open!",
+		Text = "Pick a Crate to open!",
 		Parent = reel,
 	}, { UIKit.pad(8) })
 	-- center pointer

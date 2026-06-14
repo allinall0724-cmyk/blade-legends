@@ -84,6 +84,21 @@ WeaponConfig.Sizes = {
 
 WeaponConfig.NORMAL_SIZE_INDEX = 3
 
+-- ---------------------------------------------------------------------------
+-- Collection Value scoring: Value = RarityScore x MaterialScore x SizeScore.
+-- Drives Net Worth, rarest-Blade leaderboard, sell price and trade balance.
+-- ---------------------------------------------------------------------------
+WeaponConfig.RarityScore = {
+	Common = 1, Uncommon = 3, Rare = 10, Epic = 35, Legendary = 150, Mythic = 500,
+}
+WeaponConfig.MaterialScore = {
+	Wood = 1, Stone = 1.5, Iron = 2, Gold = 3, Crystal = 4,
+	Shadow = 5, Fire = 5, Ice = 5, Lightning = 6, Void = 8,
+}
+WeaponConfig.SizeScore = {
+	Tiny = 0.8, Small = 0.9, Normal = 1, Large = 1.2, Giant = 1.5, Colossal = 2,
+}
+
 -- counts (kept as fields so other modules don't hardcode them)
 WeaponConfig.NUM_BASE = #WeaponConfig.BaseTypes -- 15
 WeaponConfig.NUM_RARITY = #RarityConfig.Order -- 6
@@ -156,6 +171,7 @@ export type WeaponInfo = {
 	reach: number,
 	hasParticles: boolean,
 	hasTrail: boolean,
+	value: number, -- collection value score
 }
 
 function WeaponConfig.getInfo(id: number): WeaponInfo?
@@ -202,7 +218,28 @@ function WeaponConfig.getInfo(id: number): WeaponInfo?
 		reach = base.reach,
 		hasParticles = RarityConfig.hasParticles(rarity),
 		hasTrail = RarityConfig.hasTrail(rarity),
+		value = math.floor(
+			(WeaponConfig.RarityScore[rarity] or 1)
+			* (WeaponConfig.MaterialScore[material.name] or 1)
+			* (WeaponConfig.SizeScore[size.name] or 1)
+			+ 0.5
+		),
 	}
+end
+
+-- Standalone value lookup (RarityScore x MaterialScore x SizeScore).
+function WeaponConfig.value(id: number): number
+	local info = WeaponConfig.getInfo(id)
+	return info and info.value or 0
+end
+
+-- Total Net Worth of a list of weapon ids.
+function WeaponConfig.netWorth(ids: { number }): number
+	local total = 0
+	for _, id in ids do
+		total += WeaponConfig.value(id)
+	end
+	return total
 end
 
 -- Convenience: build an id straight from a rarity name + random other attrs.

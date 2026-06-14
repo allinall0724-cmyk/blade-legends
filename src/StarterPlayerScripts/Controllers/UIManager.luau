@@ -223,6 +223,10 @@ function UIManager.init()
 	end)
 	Net.event("RecentPull").OnClientEvent:Connect(function(data)
 		notify({ text = ("%s pulled %s"):format(data.player, data.weapon), color = data.rarityColor, duration = 3, small = true })
+		-- feed Legendary+ pulls into the top-center HUD ticker
+		if (data.rarity == "Legendary" or data.rarity == "Mythic") and screens.hud and screens.hud.addLegendaryPull then
+			screens.hud.addLegendaryPull(data)
+		end
 	end)
 	Net.event("LeaderboardUpdate").OnClientEvent:Connect(function(data)
 		screens.leaderboard.update(data)

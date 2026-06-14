@@ -330,7 +330,7 @@ local function grandArch(pos: Vector3, yaw: number, parent: Instance)
 	lbl.Font = Enum.Font.GothamBold
 	lbl.TextScaled = true
 	lbl.TextColor3 = Color3.fromRGB(255, 215, 90)
-	lbl.Text = "⚔ BLADE LEGENDS ⚔"
+	lbl.Text = "🏛 THE VAULT 🏛"
 	lbl.Parent = sg
 end
 
@@ -910,7 +910,7 @@ local function buildHub(world: Instance): (SurfaceGui, SurfaceGui)
 	-- six glowing portal arches around the plaza, facing center
 	local portalR = 72
 	local portalDefs = {
-		{ name = "Cases", ang = 90, color = Color3.fromRGB(70, 130, 255), target = WorldConfig.CaseArea.spawn },
+		{ name = "Crates", ang = 90, color = Color3.fromRGB(70, 130, 255), target = WorldConfig.CaseArea.spawn },
 		{ name = "Leaderboard Hall", ang = 30, color = Color3.fromRGB(255, 200, 70), target = WorldConfig.LeaderboardHall.spawn },
 		{ name = "Weapon Hall", ang = 330, color = Color3.fromRGB(180, 90, 255), target = WorldConfig.WeaponHall.spawn },
 		{ name = "Trading Post", ang = 270, color = Color3.fromRGB(245, 220, 80), target = WorldConfig.Trading.spawn },
@@ -978,7 +978,7 @@ local function buildCaseRoom(world: Instance)
 	end
 	part({ Name = "CaseCeiling", Size = Vector3.new(90, 2, 90), Position = c + Vector3.new(0, 25, 0), Color = Color3.fromRGB(20, 18, 28), Material = Enum.Material.Slate, Parent = m })
 
-	signBoard("✨ Case Opening ✨  (press C)", c + Vector3.new(0, 8, -43), Color3.fromRGB(180, 120, 255), m, 0)
+	signBoard("📦 Crate Vault ✨  (press C)", c + Vector3.new(0, 8, -43), Color3.fromRGB(180, 120, 255), m, 0)
 
 	-- three ornate chests in a row, progressively grander, with colored spotlights
 	local chestDefs = {
@@ -1200,7 +1200,7 @@ local function buildRankedArena(world: Instance)
 		local badge = part({ Name = "RankBadge", Size = Vector3.new(4, 4, 0.4), Position = c + Vector3.new(-25 + (i - 1) * 10, 16, -34.5), Color = t[2], Material = Enum.Material.Neon, Parent = m })
 		pointLight(badge, t[2], 1.5, 12)
 	end
-	signBoard("⚔ RANKED 1v1 ⚔  (press K)", c + Vector3.new(0, 8, 34), Color3.fromRGB(255, 80, 90), m, math.rad(180))
+	signBoard("⚔ Ranked PVP — Coming Soon ⚔", c + Vector3.new(0, 8, 34), Color3.fromRGB(150, 150, 160), m, math.rad(180))
 
 	-- fully enclosing dark roof
 	part({ Name = "RankedRoof", Size = Vector3.new(74, 2, 74), Position = c + Vector3.new(0, 24, 0), Color = Color3.fromRGB(20, 18, 22), Material = Enum.Material.Slate, Parent = m })
@@ -1395,7 +1395,7 @@ local function buildWeaponHall(world: Instance)
 	end
 
 	-- animated-glow entrance sign
-	local hallSign = signBoard("⚔ WEAPON COLLECTION ⚔", c + Vector3.new(0, 10, -63), Color3.fromRGB(200, 130, 255), m, 0)
+	local hallSign = signBoard("⚔ BLADE COLLECTION ⚔", c + Vector3.new(0, 10, -63), Color3.fromRGB(200, 130, 255), m, 0)
 	local glowLight = pointLight(hallSign, Color3.fromRGB(190, 110, 255), 1.5, 26)
 	TweenService:Create(glowLight, TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Brightness = 4 }):Play()
 	-- tag the hall so the client can apply purple fog while inside
