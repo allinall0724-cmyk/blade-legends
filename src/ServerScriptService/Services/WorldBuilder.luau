@@ -66,7 +66,10 @@ local function sign(text: string, position: Vector3, color: Color3, parent: Inst
 end
 
 -- Build a portal pad that teleports a toucher to `targetCFrame`.
-local function portal(name: string, position: Vector3, color: Color3, targetCFrame: CFrame, parent: Instance)
+-- Accepts either a CFrame or a Vector3 target (Vector3 is coerced) so callers
+-- can pass a plain position without crashing the HumanoidRootPart assignment.
+local function portal(name: string, position: Vector3, color: Color3, target: CFrame | Vector3, parent: Instance)
+	local targetCFrame: CFrame = if typeof(target) == "Vector3" then CFrame.new(target) else target :: CFrame
 	local pad = part({
 		Name = "Portal_" .. name,
 		Size = Vector3.new(10, 1, 10),

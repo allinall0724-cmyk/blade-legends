@@ -210,8 +210,19 @@ function CombatService.equip(player: Player)
 	local handle = loadModelHandle(info)
 	handle.Parent = tool
 
-	-- equip into character directly so it's held
-	tool.Parent = character
+	-- Put the tool in the Backpack and equip via the Humanoid. This is the
+	-- reliable path — parenting a Tool straight to the character only equips it
+	-- under some conditions and was why equipping appeared to do nothing.
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if backpack then
+		tool.Parent = backpack
+	else
+		tool.Parent = character
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.Health > 0 then
+		humanoid:EquipTool(tool)
+	end
 	state.tool = tool
 end
 
