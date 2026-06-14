@@ -435,8 +435,8 @@ local function portal(name: string, position: Vector3, color: Color3, target: CF
 	-- hub you ONLY see the glowing door — nothing of the world beyond is visible.
 	part({
 		Name = "PortalBackdrop",
-		Size = Vector3.new(46, 40, 4),
-		CFrame = baseCF * CFrame.new(0, 18, -2),
+		Size = Vector3.new(46, 40, 6),
+		CFrame = baseCF * CFrame.new(0, 18, -3),
 		Color = Color3.fromRGB(8, 8, 10),
 		Material = Enum.Material.SmoothPlastic,
 		Parent = model,
@@ -445,7 +445,7 @@ local function portal(name: string, position: Vector3, color: Color3, target: CF
 	for _, sx in { -1, 1 } do
 		part({
 			Name = "PortalWing",
-			Size = Vector3.new(20, 40, 4),
+			Size = Vector3.new(20, 40, 6),
 			CFrame = baseCF * CFrame.new(sx * 22, 18, 6) * CFrame.Angles(0, sx * math.rad(55), 0),
 			Color = Color3.fromRGB(8, 8, 10),
 			Material = Enum.Material.SmoothPlastic,
@@ -956,6 +956,25 @@ local function buildHub(world: Instance): (SurfaceGui, SurfaceGui)
 	end
 	-- ambient wind/birds
 	ambientSound("hub", center + Vector3.new(0, 10, 0), 0.25, hub)
+
+	-- ===== enclose The Vault as a bright 200x200x30 room =====
+	local HALF = 100
+	local WT = 6 -- wall thickness (>= 6, no gaps)
+	local H = 30
+	local floorY = center.Y - 2
+	local cream = Color3.fromRGB(245, 240, 230)
+	-- floor + ceiling
+	part({ Name = "VaultFloor", Size = Vector3.new(HALF * 2 + WT * 2, WT, HALF * 2 + WT * 2), Position = Vector3.new(center.X, floorY - WT / 2, center.Z), Color = cream, Material = Enum.Material.Marble, Parent = hub })
+	part({ Name = "VaultCeiling", Size = Vector3.new(HALF * 2 + WT * 2, WT, HALF * 2 + WT * 2), Position = Vector3.new(center.X, floorY + H + WT / 2, center.Z), Color = Color3.fromRGB(235, 230, 245), Material = Enum.Material.SmoothPlastic, Parent = hub })
+	-- 4 walls
+	for _, def in {
+		{ p = Vector3.new(HALF, 0, 0), s = Vector3.new(WT, H, HALF * 2) },
+		{ p = Vector3.new(-HALF, 0, 0), s = Vector3.new(WT, H, HALF * 2) },
+		{ p = Vector3.new(0, 0, HALF), s = Vector3.new(HALF * 2, H, WT) },
+		{ p = Vector3.new(0, 0, -HALF), s = Vector3.new(HALF * 2, H, WT) },
+	} do
+		part({ Name = "VaultWall", Size = def.s, Position = Vector3.new(center.X + def.p.X, floorY + H / 2, center.Z + def.p.Z), Color = cream, Material = Enum.Material.Marble, Parent = hub })
+	end
 
 	return boardGui, tickerGui
 end
@@ -1497,7 +1516,7 @@ local function encloseZone(model: Model, wallColor: Color3?)
 		return
 	end
 	local center = cf.Position
-	local t = 4 -- thick walls (>= 4 studs, no thin-wall gaps)
+	local t = 6 -- thick walls (>= 6 studs, no thin-wall gaps)
 	local pad = 6
 	local hx = size.X / 2 + pad
 	local hy = size.Y / 2 + pad
