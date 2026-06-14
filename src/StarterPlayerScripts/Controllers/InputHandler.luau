@@ -53,7 +53,8 @@ function InputHandler.init()
 		local screen = KEYMAP[input.KeyCode]
 		if screen then
 			UIManager.toggle(screen)
-		elseif input.KeyCode == Enum.KeyCode.E then
+		elseif input.KeyCode == Enum.KeyCode.T then
+			-- T initiates a trade with the nearest player (E is the Dash Strike ability)
 			local target = nearestPlayer()
 			if target then
 				Net.event("InitiateTrade"):FireServer({ targetUserId = target.UserId })

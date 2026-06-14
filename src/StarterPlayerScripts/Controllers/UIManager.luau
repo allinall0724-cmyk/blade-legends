@@ -18,6 +18,7 @@ local Shop = require(uiFolder.Shop)
 local Leaderboard = require(uiFolder.Leaderboard)
 local RankedQueue = require(uiFolder.RankedQueue)
 local Trade = require(uiFolder.Trade)
+local AbilityBar = require(uiFolder.AbilityBar)
 
 local UIManager = {}
 
@@ -54,6 +55,7 @@ function UIManager.init()
 	screens.leaderboard = Leaderboard.build(ctx)
 	screens.ranked = RankedQueue.build(ctx)
 	screens.trade = Trade.build(ctx)
+	screens.abilities = AbilityBar.build(ctx)
 
 	-- ===== transient UI =====
 	-- notifications (stack, bottom-left above hotkey strip)
@@ -186,6 +188,12 @@ function UIManager.init()
 	end)
 	Net.event("TradeAction").OnClientEvent:Connect(function(data)
 		screens.trade.onAction(data)
+	end)
+	Net.event("AbilityState").OnClientEvent:Connect(function(data)
+		screens.abilities.onAbilityState(data)
+	end)
+	Net.event("AbilityFlash").OnClientEvent:Connect(function(data)
+		screens.abilities.onFlash(data)
 	end)
 
 	-- ask the server for an initial HUD snapshot
