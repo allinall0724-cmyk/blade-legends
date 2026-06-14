@@ -13,7 +13,7 @@ local InputHandler = {}
 local TRADE_RANGE = 30
 
 local KEYMAP = {
-	[Enum.KeyCode.I] = "inventory",
+	-- [I] is handled by the standalone StarterGui InventoryClient LocalScript
 	[Enum.KeyCode.B] = "shop",
 	[Enum.KeyCode.L] = "leaderboard",
 	[Enum.KeyCode.C] = "cases",

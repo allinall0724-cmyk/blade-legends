@@ -117,6 +117,8 @@ local function doOpen(player: Player, caseId: string, free: boolean?)
 		duplicate = alreadyOwned,
 		dupBonus = dupBonus,
 	})
+	-- tell the StarterGui inventory to add the new Blade immediately
+	Net.event("NewWeaponReceived"):FireClient(player, { weaponId = weaponId, info = info })
 
 	-- recent-pulls ticker to everyone (clients + physical hub board)
 	local tickerEntry = {
@@ -200,8 +202,8 @@ function CaseService.init()
 		doOpen(player, "Basic", true)
 	end)
 
-	-- sell a Blade for 20% of its Value in coins
-	Net.event("SellBlade").OnServerEvent:Connect(function(player, payload)
+	-- sell a Blade for 20% of its Value in coins (SellBlade + SellWeapon aliases)
+	local function sellHandler(player: Player, payload: any)
 		if typeof(payload) ~= "table" then
 			return
 		end
@@ -218,7 +220,9 @@ function CaseService.init()
 			})
 			CaseService._pushHud(player)
 		end
-	end)
+	end
+	Net.event("SellBlade").OnServerEvent:Connect(sellHandler)
+	Net.event("SellWeapon").OnServerEvent:Connect(sellHandler)
 
 	Players.PlayerRemoving:Connect(function(player)
 		lastOpen[player.UserId] = nil

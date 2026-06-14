@@ -15,7 +15,6 @@ local SoundController = require(script.Parent.SoundController)
 local uiFolder = script.Parent.Parent.UI
 local UIKit = require(uiFolder.UIKit)
 local MainHUD = require(uiFolder.MainHUD)
-local Inventory = require(uiFolder.Inventory)
 local CaseOpening = require(uiFolder.CaseOpening)
 local Shop = require(uiFolder.Shop)
 local Leaderboard = require(uiFolder.Leaderboard)
@@ -66,7 +65,6 @@ function UIManager.init()
 		end
 	end
 	buildScreen("hud", MainHUD)
-	buildScreen("inventory", Inventory)
 	buildScreen("cases", CaseOpening)
 	buildScreen("shop", Shop)
 	buildScreen("leaderboard", Leaderboard)

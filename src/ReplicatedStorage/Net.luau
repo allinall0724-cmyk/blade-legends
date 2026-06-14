@@ -46,6 +46,8 @@ Net.Events = {
 	"TutorialStep",      -- server -> client : {step,text} new-player tutorial
 	"ClaimFreeCrate",    -- client -> server : claim the daily free crate
 	"TradeFeed",         -- server -> client : {a,aBlade,b,bBlade,legendary} feed entry
+	"NewWeaponReceived", -- server -> client : {weaponId, info} new Blade obtained
+	"SellWeapon",        -- client -> server : {weaponId} sell a Blade (StarterGui inv)
 }
 
 -- RemoteFunctions (request/response).
