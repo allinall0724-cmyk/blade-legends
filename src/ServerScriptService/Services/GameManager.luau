@@ -257,6 +257,9 @@ function GameManager.init()
 	-- build the map
 	local refs = WorldBuilder.build()
 	buildBoardUI(refs.board)
+	if refs.fameBoard then
+		buildBoardUI(refs.fameBoard)
+	end
 
 	-- casual theme applier (recolors arena floor/walls)
 	GameManager._applyCasualTheme = function(index: number)
@@ -281,9 +284,12 @@ function GameManager.init()
 	TradeService._pushHud = pushHud
 	MonetizationService._pushHud = pushHud
 
-	-- physical board updates
+	-- physical board updates (hub board + Hall of Fame board)
 	LeaderboardService._updateBoard = function(entries)
 		updateBoardUI(refs.board, entries)
+		if refs.fameBoard then
+			updateBoardUI(refs.fameBoard, entries)
+		end
 	end
 
 	-- case ticker -> physical board

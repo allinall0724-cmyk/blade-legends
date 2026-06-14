@@ -22,6 +22,17 @@ WorldConfig.Trading = {
 	spawn = CFrame.new(0, 5, -235),
 }
 
+-- Decorative halls (no gameplay spawns depend on these — purely visited zones).
+WorldConfig.WeaponHall = {
+	center = Vector3.new(360, 5, 220),
+	spawn = CFrame.new(360, 6, 168),
+}
+
+WorldConfig.LeaderboardHall = {
+	center = Vector3.new(-360, 5, 220),
+	spawn = CFrame.new(-360, 6, 168),
+}
+
 -- Casual arena: one pad, several spawn rings (12 players).
 WorldConfig.Casual = {
 	center = Vector3.new(-320, 5, 0),

@@ -65,6 +65,34 @@ particles and trail are all derived from that id.
 | gauntlet fist | 14913098471 |
 | shield weapon | 121179389531601 |
 
+## Visual world
+
+`WorldBuilder.luau` builds the full map at server start: a circular stone hub plaza
+with a fountain, 4 torch-lit pillars, hanging banners, a rotating legendary-sword
+showcase, the gold-trimmed leaderboard board, and **6 glowing portal arches** to:
+Case Room, Casual Arena (colosseum + tiered seating), Ranked Arena (spotlit center
+circle + elevated spawns + rank badges), Trading Post (market stalls + lanterns +
+podiums), Weapon Hall (15 rotating crystal pedestals), and Leaderboard Hall (hall of
+fame with top-3 portrait frames). Warm fantasy lighting + Atmosphere + skybox + bloom.
+
+Everything is built from anchored parts so it always renders. Real Toolbox free
+models are inserted on top via `InsertService:LoadAsset` (best effort — needs Studio
+API access; silently falls back to the part build if unavailable):
+
+| Keyword | Asset ID | Used in |
+|---|---|---|
+| fantasy colosseum arena | 99212531250476 | Casual Arena |
+| medieval market stall | 73415637424967 | Trading Post |
+| fantasy fountain | 99409450961129 | Hub |
+| stone pillar | 124337420 | (part-built pillars) |
+| wooden chest | 101733285763879 | Case Room (Basic/Pro) |
+| fantasy gate portal | 129440560208184 | (part-built arches) |
+| torch fire | 72634841680697 | (part-built torches) |
+| banner flag | 108279041197718 | (part-built banners) |
+| treasure chest | 123781273 | Case Room (Mythic) |
+| crystal pedestal | 132819132970774 | Weapon Hall |
+| fantasy skybox | 134508275307153 | Lighting |
+
 ## Controls
 
 | Key | Action |
