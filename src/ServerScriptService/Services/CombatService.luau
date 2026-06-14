@@ -75,17 +75,80 @@ end
 -- no weapon should exceed ~2x character height (~10 studs)
 local MAX_WEAPON_LENGTH = 9
 
+-- which procedural shape each base type uses when no Toolbox mesh loads
+local SHAPE = {
+	Sword = "blade", Katana = "blade", Dagger = "blade", Lance = "blade",
+	["Battle Axe"] = "head", ["War Hammer"] = "head", Mace = "head", Scythe = "head",
+	["Magic Staff"] = "staff", Wand = "staff",
+	Bow = "bow",
+	Trident = "polearm", Spear = "polearm",
+	Gauntlet = "flat", Shield = "flat",
+}
+
+-- Build a recognisable weapon out of parts welded to a small grip Handle.
+-- The Handle stays small (<= 0.3, 3.5, 0.3) so it sits in the hand; the visible
+-- blade/head/pole is welded above it and tinted to the material colour.
 local function buildPlaceholderHandle(info: WeaponConfig.WeaponInfo): BasePart
-	-- vertical blade: long axis along Y so it sits upright in the hand by default,
-	-- length capped so big weapons never become absurd.
-	local length = math.clamp(info.reach * 0.5 * info.sizeMult, 3, MAX_WEAPON_LENGTH)
+	local s = math.clamp(info.sizeMult, 0.6, 2)
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
-	handle.Size = Vector3.new(0.5, length, 0.5)
-	handle.Color = info.materialColor
-	handle.Material = Enum.Material.Metal
+	handle.Size = Vector3.new(0.3, math.min(3.5, 1.2 * s), 0.3)
+	handle.CFrame = CFrame.new()
+	handle.Color = Color3.fromRGB(70, 50, 35) -- grip is leather/wood brown
+	handle.Material = Enum.Material.Wood
+	handle.CanCollide = false
+	handle.Massless = true
 	handle.TopSurface = Enum.SurfaceType.Smooth
 	handle.BottomSurface = Enum.SurfaceType.Smooth
+
+	local function add(size: Vector3, cf: CFrame, shape: Enum.PartType?)
+		local p = Instance.new("Part")
+		p.Shape = shape or Enum.PartType.Block
+		p.Size = size
+		p.CFrame = cf
+		p.Color = info.materialColor
+		p.Material = Enum.Material.Metal
+		p.CanCollide = false
+		p.Massless = true
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = handle
+		w.Part1 = p
+		w.Parent = handle
+		p.Parent = handle
+		return p
+	end
+
+	local kind = SHAPE[info.baseType] or "blade"
+	local up = handle.Size.Y / 2
+	if kind == "blade" then
+		add(Vector3.new(0.2, 3 * s, 0.2), CFrame.new(0, up + 1.5 * s, 0)) -- blade
+		add(Vector3.new(0.9 * s, 0.2, 0.25), CFrame.new(0, up + 0.1, 0)) -- crossguard
+	elseif kind == "head" then
+		add(Vector3.new(0.25, 3.4 * s, 0.25), CFrame.new(0, up + 1.6 * s, 0)) -- pole
+		add(Vector3.new(1.4 * s, 1 * s, 0.4), CFrame.new(0.5 * s, up + 3 * s, 0)) -- head block
+		add(Vector3.new(0.5 * s, 1 * s, 0.4), CFrame.new(-0.4 * s, up + 3 * s, 0)) -- back of head
+	elseif kind == "staff" then
+		add(Vector3.new(0.18, 4 * s, 0.18), CFrame.new(0, up + 2 * s, 0)) -- shaft
+		local orb = add(Vector3.new(0.7 * s, 0.7 * s, 0.7 * s), CFrame.new(0, up + 4 * s, 0), Enum.PartType.Ball)
+		orb.Material = Enum.Material.Neon
+	elseif kind == "bow" then
+		add(Vector3.new(0.18, 1.8 * s, 0.18), CFrame.new(0, up + 0.9 * s, 0.4 * s) * CFrame.Angles(math.rad(25), 0, 0))
+		add(Vector3.new(0.18, 1.8 * s, 0.18), CFrame.new(0, up - 0.9 * s + 1.8 * s, -0.4 * s) * CFrame.Angles(math.rad(-25), 0, 0))
+		add(Vector3.new(0.05, 3.4 * s, 0.05), CFrame.new(0, up + 1.6 * s, 0)) -- string
+	elseif kind == "polearm" then
+		add(Vector3.new(0.2, 3.6 * s, 0.2), CFrame.new(0, up + 1.8 * s, 0)) -- shaft
+		for _, dx in { -0.35, 0, 0.35 } do
+			add(Vector3.new(0.12, 0.9 * s, 0.12), CFrame.new(dx * s, up + 3.8 * s, 0)) -- prongs
+		end
+	else -- flat (gauntlet / shield)
+		if info.baseType == "Shield" then
+			add(Vector3.new(2.2 * s, 2.8 * s, 0.3), CFrame.new(0, up + 0.6 * s, 0.3))
+		else
+			add(Vector3.new(1 * s, 1 * s, 1.4 * s), CFrame.new(0, up + 0.6 * s, 0.3)) -- fist
+		end
+	end
 	return handle
 end
 
@@ -141,11 +204,26 @@ local function applyVisuals(handle: BasePart, info: WeaponConfig.WeaponInfo)
 end
 
 local function loadModelHandle(info: WeaponConfig.WeaponInfo): BasePart
-	local ok, modelOrErr = pcall(function()
-		return InsertService:LoadAsset(info.assetId)
-	end)
-	if ok and modelOrErr then
-		local container = modelOrErr :: Instance
+	-- Try LoadAsset up to twice. A successful load must actually contain a mesh
+	-- (MeshPart / SpecialMesh) — otherwise it's a plain-block stand-in and we use
+	-- the procedural shape instead, which is what made every weapon look the same.
+	local container: Instance? = nil
+	for _ = 1, 2 do
+		local ok, result = pcall(function()
+			return InsertService:LoadAsset(info.assetId)
+		end)
+		if ok and result then
+			local hasMesh = result:FindFirstChildWhichIsA("MeshPart", true) ~= nil
+				or result:FindFirstChildWhichIsA("SpecialMesh", true) ~= nil
+			if hasMesh then
+				container = result
+				break
+			else
+				result:Destroy() -- blocky/empty load — retry then fall back
+			end
+		end
+	end
+	if container then
 		local model = container:FindFirstChildWhichIsA("Model") or container
 		-- Scale the WHOLE model proportionally (Model:ScaleTo scales every part,
 		-- unlike resizing a single Handle) so the displayed weapon is a consistent
