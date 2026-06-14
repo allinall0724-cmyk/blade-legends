@@ -89,7 +89,7 @@ MonetizationService.PRODUCTS = {
 } :: { ProductDef }
 
 local STREAK_BONUS = { [3] = 150, [7] = 500, [30] = 2000 }
-local DAILY_BASE = 50
+local DAILY_BASE = 100
 local STARTER_DAYS = 7
 
 MonetizationService._pushHud = function(_player: Player) end

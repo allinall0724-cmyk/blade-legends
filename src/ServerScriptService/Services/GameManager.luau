@@ -24,8 +24,8 @@ local WorldBuilder = require(script.Parent.WorldBuilder)
 local GameManager = {}
 
 local CASUAL_ROUND = 300 -- 5 minutes
-local KILL_COINS = 10
-local WIN_COINS = 50
+local KILL_COINS = 15
+local WIN_COINS = 75
 local RESPAWN_TIME = 5
 
 local casualMembers: { [number]: boolean } = {}

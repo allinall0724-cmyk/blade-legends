@@ -117,6 +117,25 @@ function CaseOpening.build(ctx: any)
 	end)
 	againBtn.Parent = body
 
+	-- free daily crate
+	local freeBtn = UIKit.button("🎁 Free Daily Crate", UDim2.new(0, 200, 0, 40), UDim2.fromOffset(220, 380), UIKit.Colors.accent, function()
+		if spinning then return end
+		lastCaseId = "Basic"
+		self.startSpin("Basic")
+		ctx.event("ClaimFreeCrate"):FireServer()
+	end)
+	freeBtn.Parent = body
+
+	-- streak + best-pull-today status
+	local statusLabel = UIKit.create("TextLabel", {
+		Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 428), BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = UIKit.Colors.subtext, Text = "Opening streak: 0   •   Best pull today: 0 ⬩", Parent = body,
+	})
+	local streak = 0
+	local lastOpenClock = 0
+	local bestToday = 0
+
 	-- full-screen flash overlay (added to root so it covers everything)
 	local flash = UIKit.create("Frame", {
 		Name = "CaseFlash",
@@ -167,20 +186,49 @@ function CaseOpening.build(ctx: any)
 			end
 			reelLabel.Text = info.name
 			reelLabel.TextColor3 = info.rarityColor
-			cardName.Text = info.name .. (data.pity and "  (PITY!)" or "")
+			local extra = data.pity and "  (PITY!)" or ""
+			if data.duplicate then
+				extra ..= ("  • DUPLICATE! +%d coins"):format(data.dupBonus or 0)
+			end
+			cardName.Text = info.name .. extra
 			cardName.TextColor3 = info.rarityColor
 			cardStroke.Color = info.rarityColor
-			cardStats.Text = ("%s • %s • DMG %d • Speed %.2f/s%s"):format(
-				info.rarity, info.material, math.floor(info.damage), info.speed,
+			cardStats.Text = ("Value %d ⬩ • %s • %s • DMG %d%s"):format(
+				math.floor(info.value or 0), info.rarity, info.material, math.floor(info.damage),
 				info.hasTrail and "  ✨Trail" or ""
 			)
 			card.Visible = true
 			doFlash(info.rarityColor)
+
+			-- opening streak (3+ opens within 12s of each other = ON A ROLL!)
+			local nowC = os.clock()
+			streak = (nowC - lastOpenClock < 12) and (streak + 1) or 1
+			lastOpenClock = nowC
+			bestToday = math.max(bestToday, math.floor(info.value or 0))
+			statusLabel.Text = ("Opening streak: %d   •   Best pull today: %d ⬩"):format(streak, bestToday)
+			if streak >= 3 then
+				self.banner("🔥 ON A ROLL! x" .. streak, Color3.fromRGB(255, 150, 60))
+			end
+			if data.duplicate then
+				self.banner("DUPLICATE! +" .. (data.dupBonus or 0) .. " coins", Color3.fromRGB(120, 220, 150))
+			end
+
 			-- confetti for Epic+
 			if RarityConfig.indexOf(info.rarity) >= RarityConfig.indexOf("Epic") then
 				self.confetti(info.rarityColor)
 			end
 		end)
+	end
+
+	-- transient centered banner used for streak / duplicate callouts
+	function self.banner(text: string, color: Color3)
+		local lbl = UIKit.create("TextLabel", {
+			Size = UDim2.fromOffset(360, 44), Position = UDim2.new(0.5, -180, 0.28, 0), BackgroundTransparency = 1,
+			Font = Enum.Font.GothamBlack, TextScaled = true, TextStrokeTransparency = 0.3, ZIndex = 95,
+			TextColor3 = color, Text = text, Parent = ctx.root,
+		})
+		TweenService:Create(lbl, TweenInfo.new(1.3), { Position = UDim2.new(0.5, -180, 0.2, 0), TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		task.delay(1.4, function() lbl:Destroy() end)
 	end
 
 	function self.confetti(color: Color3)

@@ -24,7 +24,7 @@ local function legendaryIndex(): number
 	return RarityConfig.indexOf("Legendary")
 end
 
-local function doOpen(player: Player, caseId: string)
+local function doOpen(player: Player, caseId: string, free: boolean?)
 	local case = CaseConfig.Cases[caseId]
 	if not case then
 		return
@@ -41,7 +41,7 @@ local function doOpen(player: Player, caseId: string)
 	end
 	lastOpen[player.UserId] = now
 
-	if not DataService.spendCoins(player, case.cost) then
+	if not free and not DataService.spendCoins(player, case.cost) then
 		Net.event("Notification"):FireClient(player, {
 			text = "Not enough coins for " .. case.name,
 			color = RarityConfig.getColor("Mythic"),
@@ -85,8 +85,21 @@ local function doOpen(player: Player, caseId: string)
 
 	-- mint the weapon
 	local weaponId = WeaponConfig.randomOfRarity(rarity, rng)
+	-- duplicate detector: did they already own this exact Blade?
+	local alreadyOwned = false
+	for _, owned in profile.weapons do
+		if owned == weaponId then
+			alreadyOwned = true
+			break
+		end
+	end
 	DataService.addWeapon(player, weaponId)
 	profile.cratesOpened = (profile.cratesOpened or 0) + 1
+	local dupBonus = 0
+	if alreadyOwned then
+		dupBonus = math.max(1, math.floor(WeaponConfig.value(weaponId) * 0.1))
+		DataService.addCoins(player, dupBonus, false)
+	end
 
 	-- stats
 	local key = pulledKey[caseId]
@@ -101,6 +114,8 @@ local function doOpen(player: Player, caseId: string)
 		weapon = info,
 		pity = pityHit,
 		coins = profile.coins,
+		duplicate = alreadyOwned,
+		dupBonus = dupBonus,
 	})
 
 	-- recent-pulls ticker to everyone (clients + physical hub board)
@@ -168,6 +183,41 @@ function CaseService.init()
 			return
 		end
 		doOpen(player, caseId)
+	end)
+
+	-- daily free crate (one free Basic open per UTC day)
+	Net.event("ClaimFreeCrate").OnServerEvent:Connect(function(player)
+		local profile = DataService.get(player)
+		if not profile then
+			return
+		end
+		local today = os.date("!%Y-%m-%d") :: string
+		if profile.beginnerLuckDate == today then
+			Net.event("Notification"):FireClient(player, { text = "Free crate already claimed today — come back tomorrow!", color = Color3.fromRGB(230, 180, 60) })
+			return
+		end
+		profile.beginnerLuckDate = today
+		doOpen(player, "Basic", true)
+	end)
+
+	-- sell a Blade for 20% of its Value in coins
+	Net.event("SellBlade").OnServerEvent:Connect(function(player, payload)
+		if typeof(payload) ~= "table" then
+			return
+		end
+		local id = payload.weaponId
+		if not WeaponConfig.isValidId(id) then
+			return
+		end
+		if DataService.removeWeapon(player, id) then
+			local coins = math.max(1, math.floor(WeaponConfig.value(id) * 0.2))
+			DataService.addCoins(player, coins, false)
+			Net.event("Notification"):FireClient(player, {
+				text = ("Sold for %d coins"):format(coins),
+				color = Color3.fromRGB(120, 220, 150),
+			})
+			CaseService._pushHud(player)
+		end
 	end)
 
 	Players.PlayerRemoving:Connect(function(player)

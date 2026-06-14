@@ -188,16 +188,40 @@ function Inventory.build(ctx: any)
 	end)
 	offerBtn.Visible = false
 	offerBtn.Parent = details
-	local discardBtn = UIKit.button("Discard", UDim2.new(0.4, -4, 0, 32), UDim2.new(0.6, 4, 1, -84), UIKit.Colors.bad, function()
-		if selectedId then
-			ctx.event("DiscardWeapon"):FireServer({ weaponId = selectedId })
-			selectedId = nil
-			task.delay(0.2, function()
-				if self.refresh then
-					self.refresh()
-				end
-			end)
+	local discardBtn = UIKit.button("Sell", UDim2.new(0.4, -4, 0, 32), UDim2.new(0.6, 4, 1, -84), UIKit.Colors.bad, function()
+		if not selectedId then
+			return
 		end
+		local info = WeaponConfig.getInfo(selectedId)
+		if not info then
+			return
+		end
+		local coins = math.max(1, math.floor((info.value or 0) * 0.2))
+		-- confirmation popup
+		local pop = UIKit.create("Frame", {
+			Size = UDim2.fromOffset(360, 170), Position = UDim2.new(0.5, -180, 0.5, -85),
+			BackgroundColor3 = UIKit.Colors.bg, BorderSizePixel = 0, ZIndex = 80, Parent = ctx.root,
+		}, { UIKit.corner(12), UIKit.create("UIStroke", { Color = UIKit.Colors.bad, Thickness = 2 }) })
+		UIKit.create("TextLabel", {
+			Size = UDim2.new(1, -20, 0, 110), Position = UDim2.fromOffset(10, 8), BackgroundTransparency = 1,
+			Font = Enum.Font.Gotham, TextSize = 16, TextWrapped = true, ZIndex = 81, TextColor3 = UIKit.Colors.text,
+			Text = ("Sell %s?\nIt's worth %d ⬩. You will receive %d coins."):format(info.name, math.floor(info.value or 0), coins), Parent = pop,
+		})
+		local yes = UIKit.button("Sell", UDim2.new(0.5, -14, 0, 40), UDim2.new(0, 10, 1, -50), UIKit.Colors.bad, function()
+			ctx.event("SellBlade"):FireServer({ weaponId = selectedId })
+			selectedId = nil
+			pop:Destroy()
+			task.delay(0.2, function()
+				if self.refresh then self.refresh() end
+			end)
+		end)
+		yes.ZIndex = 81
+		yes.Parent = pop
+		local no = UIKit.button("Cancel", UDim2.new(0.5, -14, 0, 40), UDim2.new(0.5, 4, 1, -50), UIKit.Colors.panelLight, function()
+			pop:Destroy()
+		end)
+		no.ZIndex = 81
+		no.Parent = pop
 	end)
 	discardBtn.Visible = false
 	discardBtn.Parent = details
