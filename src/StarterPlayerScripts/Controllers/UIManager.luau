@@ -1,0 +1,179 @@
+--!strict
+-- UIManager: builds every screen, owns the single ScreenGui, and routes all
+-- server remotes to the right screen. Also renders transient UI: notifications,
+-- the announcement banner, the kill feed and recent-pull toasts.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local Net = require(ReplicatedStorage.Shared.Net)
+
+local uiFolder = script.Parent.Parent.UI
+local UIKit = require(uiFolder.UIKit)
+local MainHUD = require(uiFolder.MainHUD)
+local Inventory = require(uiFolder.Inventory)
+local CaseOpening = require(uiFolder.CaseOpening)
+local Shop = require(uiFolder.Shop)
+local Leaderboard = require(uiFolder.Leaderboard)
+local RankedQueue = require(uiFolder.RankedQueue)
+local Trade = require(uiFolder.Trade)
+
+local UIManager = {}
+
+local screens: { [string]: any } = {}
+
+function UIManager.init()
+	local player = Players.LocalPlayer
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "BladeLegends"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = false
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Parent = player:WaitForChild("PlayerGui")
+
+	local ctx = {
+		root = gui,
+		event = Net.event,
+		func = Net.func,
+		offerToTrade = function(weaponId: number)
+			if screens.trade then
+				screens.trade.offer(weaponId)
+			end
+		end,
+	}
+
+	-- build screens
+	screens.hud = MainHUD.build(ctx)
+	screens.inventory = Inventory.build(ctx)
+	screens.cases = CaseOpening.build(ctx)
+	screens.shop = Shop.build(ctx)
+	screens.leaderboard = Leaderboard.build(ctx)
+	screens.ranked = RankedQueue.build(ctx)
+	screens.trade = Trade.build(ctx)
+
+	-- ===== transient UI =====
+	-- notifications (stack, bottom-left above hotkey strip)
+	local notifHolder = UIKit.create("Frame", {
+		Size = UDim2.fromOffset(360, 300),
+		Position = UDim2.new(0, 16, 1, -340),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	})
+	local notifLayout = UIKit.create("UIListLayout", {
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+		Padding = UDim.new(0, 4),
+		Parent = notifHolder,
+	})
+	local function notify(payload: any)
+		local toast = UIKit.create("TextLabel", {
+			Size = UDim2.new(1, 0, 0, payload.small and 24 or 34),
+			BackgroundColor3 = UIKit.Colors.panel,
+			BackgroundTransparency = 0.1,
+			Font = Enum.Font.GothamBold,
+			TextScaled = true,
+			TextColor3 = payload.color or UIKit.Colors.text,
+			Text = tostring(payload.text or ""),
+			Parent = notifHolder,
+		}, { UIKit.corner(6), UIKit.pad(4) })
+		task.delay(payload.duration or 2.5, function()
+			TweenService:Create(toast, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1 }):Play()
+			task.wait(0.4)
+			toast:Destroy()
+		end)
+	end
+
+	-- announcement banner (top center)
+	local banner = UIKit.create("TextLabel", {
+		Size = UDim2.new(0, 720, 0, 50),
+		Position = UDim2.new(0.5, -360, 0, -60),
+		AnchorPoint = Vector2.new(0, 0),
+		BackgroundColor3 = UIKit.Colors.bg,
+		BackgroundTransparency = 0.1,
+		Font = Enum.Font.GothamBold,
+		TextScaled = true,
+		TextColor3 = UIKit.Colors.accent,
+		Text = "",
+		Visible = false,
+		Parent = gui,
+	}, { UIKit.corner(10), UIKit.pad(8) })
+	local function announce(payload: any)
+		banner.Text = tostring(payload.text or "")
+		banner.TextColor3 = payload.color or UIKit.Colors.accent
+		banner.Visible = true
+		banner.Position = UDim2.new(0.5, -360, 0, -60)
+		TweenService:Create(banner, TweenInfo.new(0.5), { Position = UDim2.new(0.5, -360, 0, 12) }):Play()
+		task.delay(4.5, function()
+			TweenService:Create(banner, TweenInfo.new(0.5), { Position = UDim2.new(0.5, -360, 0, -60) }):Play()
+			task.wait(0.5)
+			banner.Visible = false
+		end)
+	end
+
+	-- kill feed (top right, below rank)
+	local killHolder = UIKit.create("Frame", {
+		Size = UDim2.fromOffset(280, 200),
+		Position = UDim2.new(1, -296, 0, 76),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	})
+	UIKit.create("UIListLayout", { Padding = UDim.new(0, 3), Parent = killHolder })
+	local function killFeed(payload: any)
+		local row = UIKit.create("TextLabel", {
+			Size = UDim2.new(1, 0, 0, 24),
+			BackgroundColor3 = UIKit.Colors.panel,
+			BackgroundTransparency = 0.2,
+			Font = Enum.Font.GothamMedium,
+			TextScaled = true,
+			TextColor3 = UIKit.Colors.text,
+			Text = ("%s 🗡 %s"):format(payload.killer or "?", payload.victim or "?"),
+			Parent = killHolder,
+		}, { UIKit.corner(5), UIKit.pad(3) })
+		task.delay(5, function()
+			row:Destroy()
+		end)
+	end
+
+	-- ===== remote routing =====
+	Net.event("UpdateHUD").OnClientEvent:Connect(function(data)
+		screens.hud.update(data)
+		screens.ranked.updateRank(data)
+	end)
+	Net.event("Notification").OnClientEvent:Connect(notify)
+	Net.event("Announcement").OnClientEvent:Connect(announce)
+	Net.event("KillFeed").OnClientEvent:Connect(killFeed)
+	Net.event("CaseResult").OnClientEvent:Connect(function(data)
+		screens.cases.open()
+		screens.cases.onResult(data)
+	end)
+	Net.event("RecentPull").OnClientEvent:Connect(function(data)
+		notify({ text = ("%s pulled %s"):format(data.player, data.weapon), color = data.rarityColor, duration = 3, small = true })
+	end)
+	Net.event("LeaderboardUpdate").OnClientEvent:Connect(function(data)
+		screens.leaderboard.update(data)
+	end)
+	Net.event("MatchState").OnClientEvent:Connect(function(data)
+		screens.ranked.onMatchState(data)
+		screens.ranked.panel.Visible = true
+	end)
+	Net.event("TradeAction").OnClientEvent:Connect(function(data)
+		screens.trade.onAction(data)
+	end)
+
+	-- ask the server for an initial HUD snapshot
+	task.defer(function()
+		Net.event("RequestData"):FireServer()
+	end)
+
+	UIManager.screens = screens
+end
+
+-- used by InputHandler
+function UIManager.toggle(name: string)
+	local s = screens[name]
+	if s and s.toggle then
+		s.toggle()
+	end
+end
+
+return UIManager
