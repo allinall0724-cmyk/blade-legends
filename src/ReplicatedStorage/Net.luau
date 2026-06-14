@@ -33,6 +33,11 @@ Net.Events = {
 	"BuyProduct",        -- client -> server : {productKey}
 	"ClaimDaily",        -- client -> server : claim daily login reward
 	"RecentPull",        -- server -> client : case ticker {player, weapon, rarity}
+	"ZoneEnter",         -- server -> client : {zone} -> fade + label + whoosh
+	"UseAbility",        -- client -> server : {slot}  slot in Q/E/R/F/G
+	"AbilityState",      -- server -> client : {slot, remaining, duration} cooldown UI
+	"AbilityFlash",      -- server -> client : {name, color} ability-name flash
+	"ComboUpdate",       -- server -> client : {count} combo counter
 }
 
 -- RemoteFunctions (request/response).

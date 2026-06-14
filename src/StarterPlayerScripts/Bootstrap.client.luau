@@ -3,6 +3,8 @@
 
 local Controllers = script.Parent.Controllers
 
+local SoundController = require(Controllers.SoundController)
+local ZoneController = require(Controllers.ZoneController)
 local UIManager = require(Controllers.UIManager)
 local CombatClient = require(Controllers.CombatClient)
 local InputHandler = require(Controllers.InputHandler)
@@ -14,7 +16,9 @@ local function safe(name: string, fn: () -> ())
 	end
 end
 
+safe("SoundController", SoundController.init)
 safe("UIManager", UIManager.init)
+safe("ZoneController", ZoneController.init)
 safe("CombatClient", CombatClient.init)
 safe("InputHandler", InputHandler.init)
 

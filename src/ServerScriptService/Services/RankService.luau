@@ -59,6 +59,23 @@ local function equippedWeaponName(player: Player): string
 	return info and info.name or "Unknown"
 end
 
+-- Fill (or clear) the two name boards on the ranked arena walls.
+local function setNameBoards(aName: string, bName: string)
+	local world = workspace:FindFirstChild("BladeLegendsWorld")
+	local arena = world and world:FindFirstChild("RankedArena")
+	if not arena then
+		return
+	end
+	for boardName, who in { RankedNameBoardA = aName, RankedNameBoardB = bName } do
+		local board = arena:FindFirstChild(boardName)
+		local gui = board and board:FindFirstChild("Gui")
+		local label = gui and gui:FindFirstChild("Label")
+		if label and label:IsA("TextLabel") then
+			label.Text = who
+		end
+	end
+end
+
 local function sendMatchState(m: Match)
 	for _, p in { m.a, m.b } do
 		local prof = DataService.get(p)
@@ -86,6 +103,7 @@ local function startRound(m: Match)
 	teleport(m.b, WorldConfig.Ranked.spawnB)
 	CombatService.resetHealth(m.a)
 	CombatService.resetHealth(m.b)
+	setNameBoards(m.a.DisplayName, m.b.DisplayName)
 	sendMatchState(m)
 end
 
@@ -93,6 +111,7 @@ local function endMatch(m: Match, winner: Player, loser: Player)
 	m.active = false
 	activeMatch[m.a.UserId] = nil
 	activeMatch[m.b.UserId] = nil
+	setNameBoards("—", "—")
 
 	local wProf = DataService.get(winner)
 	local lProf = DataService.get(loser)
