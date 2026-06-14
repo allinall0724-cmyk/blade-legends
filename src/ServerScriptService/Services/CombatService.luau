@@ -356,6 +356,9 @@ local function setupCharacter(player: Player, character: Model)
 				name.TextColor3 = nameColor
 			end
 			local segs = {}
+			if player:GetAttribute("NewTag") == true then
+				table.insert(segs, "NEW")
+			end
 			if typeof(title) == "string" and title ~= "" then
 				table.insert(segs, "«" .. title .. "»")
 			end
@@ -364,7 +367,12 @@ local function setupCharacter(player: Player, character: Model)
 			end
 			if #segs > 0 then
 				tagLabel.Text = table.concat(segs, " ")
-				tagLabel.TextColor3 = (typeof(tagColor) == "Color3" and tagColor) or Color3.fromRGB(255, 215, 90)
+				-- green when only the NEW tag is showing
+				if player:GetAttribute("NewTag") == true and #segs == 1 then
+					tagLabel.TextColor3 = Color3.fromRGB(90, 220, 120)
+				else
+					tagLabel.TextColor3 = (typeof(tagColor) == "Color3" and tagColor) or Color3.fromRGB(255, 215, 90)
+				end
 				tagLabel.Visible = true
 			else
 				tagLabel.Visible = false
@@ -374,6 +382,7 @@ local function setupCharacter(player: Player, character: Model)
 		player:GetAttributeChangedSignal("ChatTag"):Connect(refreshName)
 		player:GetAttributeChangedSignal("NameColor"):Connect(refreshName)
 		player:GetAttributeChangedSignal("Title"):Connect(refreshName)
+		player:GetAttributeChangedSignal("NewTag"):Connect(refreshName)
 
 		-- health bar
 		local barBg = Instance.new("Frame")

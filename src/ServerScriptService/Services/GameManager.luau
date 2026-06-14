@@ -19,6 +19,7 @@ local TradeService = require(script.Parent.TradeService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local MonetizationService = require(script.Parent.MonetizationService)
 local MilestoneService = require(script.Parent.MilestoneService)
+local TutorialService = require(script.Parent.TutorialService)
 local WorldBuilder = require(script.Parent.WorldBuilder)
 
 local GameManager = {}
@@ -339,6 +340,7 @@ function GameManager.init()
 	LeaderboardService.init()
 	MonetizationService.init()
 	MilestoneService.init()
+	TutorialService.init()
 
 	-- remotes: equip / discard / data / casual join
 	Net.event("EquipWeapon").OnServerEvent:Connect(function(player, payload)

@@ -65,7 +65,7 @@ export type Profile = {
 
 local function defaultProfile(): Profile
 	return {
-		coins = 250, -- small starter stipend so new players can open a case
+		coins = 150, -- new-Collector starter stipend
 		weapons = {},
 		equippedWeapon = nil,
 		rankRating = 0,

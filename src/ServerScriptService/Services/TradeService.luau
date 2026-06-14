@@ -194,6 +194,14 @@ local function initiate(player: Player, targetUserId: number)
 		Net.event("Notification"):FireClient(player, { text = "Get closer to trade.", color = Color3.fromRGB(230, 180, 60) })
 		return
 	end
+	-- new-player protection: experienced Collectors (100+ Blades) can't trade-request
+	-- new players (< 10 Blades), to prevent scamming newcomers.
+	local myProf = DataService.get(player)
+	local targetProf = DataService.get(target)
+	if myProf and targetProf and #targetProf.weapons < 10 and #myProf.weapons >= 100 then
+		Net.event("Notification"):FireClient(player, { text = "That Collector is too new to trade with you (new-player protection).", color = Color3.fromRGB(230, 180, 60) })
+		return
+	end
 	sessionCounter += 1
 	local session: Session = {
 		id = sessionCounter,

@@ -251,6 +251,42 @@ function UIManager.init()
 		screens.abilities.onFlash(data)
 	end)
 
+	-- first-time guided tutorial
+	Net.event("TutorialStep").OnClientEvent:Connect(function(data)
+		if typeof(data) ~= "table" or typeof(data.steps) ~= "table" then
+			return
+		end
+		local steps = data.steps
+		local idx = 1
+		local pop = UIKit.create("Frame", {
+			Size = UDim2.fromOffset(460, 200), Position = UDim2.new(0.5, -230, 0.62, -100),
+			BackgroundColor3 = UIKit.Colors.bg, BorderSizePixel = 0, ZIndex = 70, Parent = gui,
+		}, { UIKit.corner(12), UIKit.create("UIStroke", { Color = UIKit.Colors.accent, Thickness = 2.5 }) })
+		UIKit.create("TextLabel", {
+			Size = UDim2.new(1, -20, 0, 24), Position = UDim2.fromOffset(10, 8), BackgroundTransparency = 1,
+			Font = Enum.Font.GothamBold, TextSize = 16, ZIndex = 71, TextColor3 = UIKit.Colors.accent,
+			Text = "📜 TUTORIAL", Parent = pop,
+		})
+		local stepLabel = UIKit.create("TextLabel", {
+			Size = UDim2.new(1, -20, 0, 110), Position = UDim2.fromOffset(10, 36), BackgroundTransparency = 1,
+			Font = Enum.Font.Gotham, TextSize = 18, TextWrapped = true, ZIndex = 71, TextColor3 = UIKit.Colors.text,
+			TextYAlignment = Enum.TextYAlignment.Top, Text = tostring(steps[1] or ""), Parent = pop,
+		})
+		local nextBtn = UIKit.button("Next →", UDim2.new(1, -20, 0, 40), UDim2.new(0, 10, 1, -50), UIKit.Colors.good)
+		nextBtn.ZIndex = 71
+		nextBtn.Parent = pop
+		nextBtn.Activated:Connect(function()
+			idx += 1
+			if idx > #steps then
+				pop:Destroy()
+				return
+			end
+			stepLabel.Text = tostring(steps[idx])
+			nextBtn.Text = (idx == #steps) and "Got it!" or ("Next →  (" .. idx .. "/" .. #steps .. ")")
+		end)
+		nextBtn.Text = "Next →  (1/" .. #steps .. ")"
+	end)
+
 	-- conversion / promo popups (starter pack, low-coin, streak saver, etc.)
 	Net.event("PromoPopup").OnClientEvent:Connect(function(data)
 		if typeof(data) ~= "table" then
