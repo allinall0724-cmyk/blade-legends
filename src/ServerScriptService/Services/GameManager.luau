@@ -326,9 +326,20 @@ function GameManager.init()
 			return
 		end
 		local id = payload.weaponId
+		-- validate ownership (setEquipped only succeeds if the player owns it)
 		if WeaponConfig.isValidId(id) and DataService.setEquipped(player, id) then
-			CombatService.equip(player)
-			pushHud(player)
+			CombatService.equip(player) -- builds the Tool, parents to Backpack, EquipTool
+			pushHud(player) -- UpdateHUD carries the new equipped name + rarity
+			local info = WeaponConfig.getInfo(id)
+			if info then
+				Net.event("Notification"):FireClient(player, {
+					text = "Equipped: " .. info.name,
+					color = info.rarityColor,
+					duration = 2,
+				})
+			end
+		else
+			Net.event("Notification"):FireClient(player, { text = "You don't own that weapon.", color = Color3.fromRGB(220, 90, 90), duration = 2 })
 		end
 	end)
 
