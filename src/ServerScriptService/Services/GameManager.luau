@@ -18,6 +18,7 @@ local RankService = require(script.Parent.RankService)
 local TradeService = require(script.Parent.TradeService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local MonetizationService = require(script.Parent.MonetizationService)
+local MilestoneService = require(script.Parent.MilestoneService)
 local WorldBuilder = require(script.Parent.WorldBuilder)
 
 local GameManager = {}
@@ -304,6 +305,10 @@ function GameManager.init()
 	CaseService._onLegendary = MonetizationService.vipSpotlight
 	RankService._onRankedLoss = MonetizationService.streakSaver
 
+	-- milestones / titles
+	MilestoneService._pushHud = pushHud
+	CaseService._afterPull = MilestoneService.check
+
 	-- physical board updates (hub board + Hall of Fame board)
 	LeaderboardService._updateBoard = function(entries)
 		updateBoardUI(refs.board, entries)
@@ -333,6 +338,7 @@ function GameManager.init()
 	TradeService.init()
 	LeaderboardService.init()
 	MonetizationService.init()
+	MilestoneService.init()
 
 	-- remotes: equip / discard / data / casual join
 	Net.event("EquipWeapon").OnServerEvent:Connect(function(player, payload)

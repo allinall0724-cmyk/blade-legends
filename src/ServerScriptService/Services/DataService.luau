@@ -54,6 +54,13 @@ export type Profile = {
 	nameColorIdx: number,
 	nameColorOwned: boolean,
 	joinTime: number,
+	titles: { [string]: boolean },
+	equippedTitle: string,
+	cratesOpened: number,
+	highestValue: number,
+	milestoneFlags: { [string]: boolean },
+	tradeHistory: { any },
+	tutorialDone: boolean,
 }
 
 local function defaultProfile(): Profile
@@ -87,6 +94,14 @@ local function defaultProfile(): Profile
 		nameColorIdx = 0, -- 0 = default white
 		nameColorOwned = false,
 		joinTime = 0, -- set on load; drives the first-10-minutes starter popup
+		-- collection: milestones + titles + trade history + tutorial
+		titles = {}, -- owned titles, keyed by title string
+		equippedTitle = "",
+		cratesOpened = 0,
+		highestValue = 0,
+		milestoneFlags = {}, -- which milestones have been awarded
+		tradeHistory = {}, -- last 20 trades {date, gave, got, diff}
+		tutorialDone = false,
 	}
 end
 
@@ -102,7 +117,7 @@ local function reconcile(profile: any): Profile
 		end
 	end
 	-- nested tables
-	for _, sub in { "casesPulled", "passes", "pityCounters" } do
+	for _, sub in { "casesPulled", "passes", "pityCounters", "titles", "milestoneFlags" } do
 		if typeof(profile[sub]) ~= "table" then
 			profile[sub] = base[sub]
 		else

@@ -50,6 +50,47 @@ function Inventory.build(ctx: any)
 	-- ===== sort dropdown =====
 	local sortBtn = UIKit.button("Sort: Rarity ▾", UDim2.fromOffset(150, 30), UDim2.new(1, -160, 0, 46), UIKit.Colors.panelLight)
 	sortBtn.Parent = body
+
+	-- Titles tab
+	local titlesBtn = UIKit.button("🏷 Titles", UDim2.fromOffset(140, 30), UDim2.new(1, -312, 0, 46), UIKit.Colors.panelLight)
+	titlesBtn.Parent = body
+	titlesBtn.Activated:Connect(function()
+		local ok, data = pcall(function()
+			return ctx.func("GetTitles"):InvokeServer()
+		end)
+		if not ok or typeof(data) ~= "table" then
+			return
+		end
+		local pop, popBody = UIKit.panel("🏷 Your Titles", UDim2.fromOffset(380, 400))
+		pop.Parent = ctx.root
+		pop.Visible = true
+		local list = UIKit.create("ScrollingFrame", {
+			Size = UDim2.new(1, -20, 1, -16), Position = UDim2.fromOffset(10, 8), BackgroundTransparency = 1,
+			BorderSizePixel = 0, ScrollBarThickness = 6, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = popBody,
+		})
+		UIKit.create("UIListLayout", { Padding = UDim.new(0, 6), Parent = list })
+		local function titleRow(t: string)
+			local equipped = data.equipped == t
+			local row = UIKit.create("Frame", { Size = UDim2.new(1, -8, 0, 44), BackgroundColor3 = UIKit.Colors.panel, BorderSizePixel = 0, Parent = list }, { UIKit.corner(6) })
+			UIKit.create("TextLabel", {
+				Size = UDim2.new(0.6, 0, 1, 0), Position = UDim2.fromOffset(10, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold,
+				TextScaled = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = UIKit.Colors.accent, Text = t == "" and "(none)" or ("«" .. t .. "»"), Parent = row,
+			})
+			local b = UIKit.button(equipped and "EQUIPPED" or "Equip", UDim2.fromOffset(110, 34), UDim2.new(1, -120, 0, 5), equipped and UIKit.Colors.panelLight or UIKit.Colors.good, function()
+				ctx.event("EquipTitle"):FireServer({ title = t })
+				pop:Destroy()
+			end)
+			b.Parent = row
+		end
+		if #(data.owned or {}) == 0 then
+			UIKit.create("TextLabel", { Size = UDim2.new(1, -8, 0, 60), BackgroundTransparency = 1, Font = Enum.Font.Gotham, TextWrapped = true, TextSize = 15, TextColor3 = UIKit.Colors.subtext, Text = "No titles yet. Earn them through collection milestones!", Parent = list })
+		else
+			titleRow("") -- unequip option
+			for _, t in data.owned do
+				titleRow(t)
+			end
+		end
+	end)
 	local sortMenu = UIKit.create("Frame", {
 		Size = UDim2.fromOffset(150, #SORT_MODES * 30),
 		Position = UDim2.new(1, -160, 0, 78),
@@ -164,8 +205,8 @@ function Inventory.build(ctx: any)
 	local function showDetails(info: any)
 		dName.Text = info.name
 		dName.TextColor3 = info.rarityColor
-		dStats.Text = ("Rarity: %s\nMaterial: %s\nSize: %s\nDamage: %d\nSpeed: %.2f /s")
-			:format(info.rarity, info.material, info.size, math.floor(info.damage), info.speed)
+		dStats.Text = ("Value: %d ⬩\nRarity: %s\nMaterial: %s\nSize: %s\nDamage: %d\nSpeed: %.2f /s")
+			:format(math.floor(info.value or 0), info.rarity, info.material, info.size, math.floor(info.damage), info.speed)
 		dAbilTitle.Text = "Abilities"
 		local lines = {}
 		for _, a in AbilityConfig.listFor(info.baseType, info.rarity) do
@@ -280,7 +321,7 @@ function Inventory.build(ctx: any)
 				Font = Enum.Font.Gotham,
 				TextScaled = true,
 				TextColor3 = UIKit.Colors.subtext,
-				Text = ("⚔ %d"):format(math.floor(info.damage)),
+				Text = ("⬩ %d   ⚔ %d"):format(math.floor(info.value or 0), math.floor(info.damage)),
 				Parent = cell,
 			})
 

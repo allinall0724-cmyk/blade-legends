@@ -41,6 +41,9 @@ Net.Events = {
 	"KillNotify",        -- server -> client : {coins?} you-got-a-kill popup
 	"PromoPopup",        -- server -> client : {kind,title,body,productKey?,robux?,color?}
 	"PickNameColor",     -- client -> server : {idx} choose name-tag color
+	"EquipTitle",        -- client -> server : {title} equip an owned title
+	"SellBlade",         -- client -> server : {weaponId} sell a Blade for coins
+	"TutorialStep",      -- server -> client : {step,text} new-player tutorial
 }
 
 -- RemoteFunctions (request/response).
@@ -48,6 +51,8 @@ Net.Functions = {
 	"GetInventory",    -- () -> { weaponId... }  for the requesting player
 	"GetCollection",   -- (userId) -> summarised collection for board preview
 	"GetShopInfo",     -- () -> passes/products + owned flags
+	"GetTitles",       -- () -> { owned, equipped } for the requesting player
+	"GetTradeHistory", -- () -> last 20 trades for the requesting player
 }
 
 local function remotesFolder(): Instance

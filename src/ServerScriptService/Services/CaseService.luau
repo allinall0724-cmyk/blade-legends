@@ -86,6 +86,7 @@ local function doOpen(player: Player, caseId: string)
 	-- mint the weapon
 	local weaponId = WeaponConfig.randomOfRarity(rarity, rng)
 	DataService.addWeapon(player, weaponId)
+	profile.cratesOpened = (profile.cratesOpened or 0) + 1
 
 	-- stats
 	local key = pulledKey[caseId]
@@ -122,7 +123,8 @@ local function doOpen(player: Player, caseId: string)
 		CaseService._onLegendary(player, info and info.name or "weapon")
 	end
 
-	-- refresh HUD
+	-- milestones (titles / collection rewards) + HUD refresh
+	CaseService._afterPull(player)
 	CaseService._pushHud(player)
 end
 
@@ -132,6 +134,8 @@ CaseService._onPull = function(_entry: any) end
 -- conversion hooks (wired to MonetizationService by GameManager)
 CaseService._onLowCoins = function(_player: Player, _needed: number, _have: number) end
 CaseService._onLegendary = function(_player: Player, _weaponName: string) end
+-- called after every successful open (wired to MilestoneService.check)
+CaseService._afterPull = function(_player: Player) end
 
 -- Grant `count` free opens of a case (no cost) — used by bundle products / passes.
 function CaseService.grant(player: Player, caseId: string, count: number)

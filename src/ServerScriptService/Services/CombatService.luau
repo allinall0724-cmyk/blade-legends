@@ -351,12 +351,20 @@ local function setupCharacter(player: Player, character: Model)
 			local tag = player:GetAttribute("ChatTag")
 			local tagColor = player:GetAttribute("TagColor")
 			local nameColor = player:GetAttribute("NameColor")
+			local title = player:GetAttribute("Title")
 			if typeof(nameColor) == "Color3" then
 				name.TextColor3 = nameColor
 			end
+			local segs = {}
+			if typeof(title) == "string" and title ~= "" then
+				table.insert(segs, "«" .. title .. "»")
+			end
 			if typeof(tag) == "string" and tag ~= "" then
-				tagLabel.Text = "[" .. tag .. "]"
-				tagLabel.TextColor3 = (typeof(tagColor) == "Color3" and tagColor) or Color3.fromRGB(255, 200, 70)
+				table.insert(segs, "[" .. tag .. "]")
+			end
+			if #segs > 0 then
+				tagLabel.Text = table.concat(segs, " ")
+				tagLabel.TextColor3 = (typeof(tagColor) == "Color3" and tagColor) or Color3.fromRGB(255, 215, 90)
 				tagLabel.Visible = true
 			else
 				tagLabel.Visible = false
@@ -365,6 +373,7 @@ local function setupCharacter(player: Player, character: Model)
 		refreshName()
 		player:GetAttributeChangedSignal("ChatTag"):Connect(refreshName)
 		player:GetAttributeChangedSignal("NameColor"):Connect(refreshName)
+		player:GetAttributeChangedSignal("Title"):Connect(refreshName)
 
 		-- health bar
 		local barBg = Instance.new("Frame")

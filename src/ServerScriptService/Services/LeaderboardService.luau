@@ -36,6 +36,33 @@ local function equippedName(player: Player): string
 	return info and info.name or "—"
 end
 
+-- Top-3 Collectors get a gold aura around their character (Elite Collector).
+function LeaderboardService.setEliteGlow(player: Player, on: boolean)
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	local existing = root:FindFirstChild("EliteGlow")
+	if on and not existing then
+		local att = Instance.new("Attachment")
+		att.Name = "EliteGlow"
+		att.Parent = root
+		local em = Instance.new("ParticleEmitter")
+		em.Color = ColorSequence.new(Color3.fromRGB(255, 215, 80))
+		em.LightEmission = 1
+		em.Rate = 22
+		em.Lifetime = NumberRange.new(1, 1.6)
+		em.Speed = NumberRange.new(1, 2.5)
+		em.SpreadAngle = Vector2.new(180, 180)
+		em.Size = NumberSequence.new(0.6)
+		em.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		em.Parent = att
+	elseif not on and existing then
+		existing:Destroy()
+	end
+end
+
 local function setGoldTag(player: Player, gold: boolean)
 	local char = player.Character
 	local head = char and char:FindFirstChild("Head")
@@ -47,25 +74,39 @@ local function setGoldTag(player: Player, gold: boolean)
 	end
 end
 
+-- highest-value owned Blade (info) for a profile
+local function rarestBlade(prof: any)
+	local best, bestV = nil, -1
+	for _, id in prof.weapons do
+		local v = WeaponConfig.value(id)
+		if v > bestV then
+			bestV = v
+			best = WeaponConfig.getInfo(id)
+		end
+	end
+	return best, math.max(0, bestV)
+end
+
 local function rebuild()
-	-- gather current players sorted by rating
+	-- gather current players, ranked by Net Worth (collection-first leaderboard)
 	local list = {}
 	for _, player in Players:GetPlayers() do
 		local prof = DataService.get(player)
 		if prof then
-			table.insert(list, { player = player, rating = prof.rankRating })
-			-- push to global ordered store (best effort)
+			local nw = WeaponConfig.netWorth(prof.weapons)
+			local rarest, rarestV = rarestBlade(prof)
+			table.insert(list, { player = player, netWorth = nw, rarest = rarest, rarestV = rarestV })
 			if orderedStore then
 				task.spawn(function()
 					pcall(function()
-						(orderedStore :: OrderedDataStore):SetAsync(tostring(player.UserId), math.floor(prof.rankRating))
+						(orderedStore :: OrderedDataStore):SetAsync(tostring(player.UserId), math.floor(nw))
 					end)
 				end)
 			end
 		end
 	end
 	table.sort(list, function(a, b)
-		return a.rating > b.rating
+		return a.netWorth > b.netWorth
 	end)
 
 	local entries = {}
@@ -79,20 +120,47 @@ local function rebuild()
 			position = i,
 			name = item.player.DisplayName,
 			userId = item.player.UserId,
-			rating = math.floor(item.rating),
-			tier = RankConfig.getTierName(item.rating),
-			color = RankConfig.getTierColor(item.rating),
-			weapon = equippedName(item.player),
+			-- 'rating'/'tier'/'weapon' kept so existing board/UI formatting works
+			rating = math.floor(item.netWorth),
+			netWorth = math.floor(item.netWorth),
+			tier = "NW",
+			color = Color3.fromRGB(120, 220, 150),
+			weapon = item.rarest and item.rarest.name or "—",
 		})
 	end
 	lastEntries = entries
 
-	-- gold tags
-	for _, player in Players:GetPlayers() do
-		setGoldTag(player, topSet[player.UserId] == true)
+	-- separate "Rarest Pull" board: single highest-value Blade per player
+	local rarestList = table.clone(list)
+	table.sort(rarestList, function(a, b)
+		return a.rarestV > b.rarestV
+	end)
+	local rarestEntries = {}
+	for i, item in rarestList do
+		if i > 10 then break end
+		table.insert(rarestEntries, {
+			position = i,
+			name = item.player.DisplayName,
+			userId = item.player.UserId,
+			rating = math.floor(item.rarestV),
+			tier = "Value",
+			color = item.rarest and item.rarest.rarityColor or Color3.fromRGB(200, 200, 200),
+			weapon = item.rarest and item.rarest.name or "—",
+		})
 	end
 
-	Net.event("LeaderboardUpdate"):FireAllClients({ entries = entries, season = RankService.getSeasonInfo() })
+	-- Elite Collector glow + gold tag for the top 3 net-worth Collectors
+	for _, player in Players:GetPlayers() do
+		local rank = 0
+		for i, item in list do
+			if item.player == player then rank = i break end
+		end
+		player:SetAttribute("CollectorRank", rank)
+		setGoldTag(player, topSet[player.UserId] == true)
+		LeaderboardService.setEliteGlow(player, rank >= 1 and rank <= 3)
+	end
+
+	Net.event("LeaderboardUpdate"):FireAllClients({ entries = entries, rarestEntries = rarestEntries })
 	LeaderboardService._updateBoard(entries)
 end
 
