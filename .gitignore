@@ -1,0 +1,7 @@
+# local tooling (downloaded luau CLI used for syntax checks)
+.tools/
+*.zip
+
+# rojo build artifact is committed (game.rbxl) so the game is ready to open;
+# remove the next line if you'd rather not version the binary.
+# game.rbxl
