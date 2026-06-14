@@ -753,31 +753,34 @@ end
 -- lighting / atmosphere
 -- ===========================================================================
 local function setupLighting()
+	-- bright, happy, welcoming
 	Lighting.GlobalShadows = true
-	Lighting.Ambient = Color3.fromRGB(80, 70, 60)
-	Lighting.OutdoorAmbient = Color3.fromRGB(90, 80, 70)
-	Lighting.Brightness = 2
-	Lighting.ColorShift_Top = Color3.fromRGB(255, 220, 180)
-	Lighting.ClockTime = 15
+	Lighting.Ambient = Color3.fromRGB(180, 180, 200)
+	Lighting.OutdoorAmbient = Color3.fromRGB(190, 190, 205)
+	Lighting.Brightness = 3
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 240, 220)
+	Lighting.ClockTime = 13
+	Lighting.FogEnd = 100000 -- no dark fog
+	Lighting.FogStart = 0
 	pcall(function()
 		Lighting.Technology = Enum.Technology.Future
 	end)
 
-	-- atmosphere
+	-- remove any gloomy atmosphere
 	local existingAtmos = Lighting:FindFirstChildOfClass("Atmosphere")
 	if existingAtmos then
 		existingAtmos:Destroy()
 	end
-	local atmos = Instance.new("Atmosphere")
-	atmos.Density = 0.25
-	atmos.Offset = 0.25
-	atmos.Color = Color3.fromRGB(199, 170, 140)
-	atmos.Decay = Color3.fromRGB(150, 130, 110)
-	atmos.Glare = 0.2
-	atmos.Haze = 1.6
-	atmos.Parent = Lighting
 
-	-- skybox: try the toolbox fantasy skybox, else a warm default Sky
+	-- ColorCorrection so colours pop
+	local cc = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect")
+	cc.Brightness = 0.05
+	cc.Contrast = 0.1
+	cc.Saturation = 0.15
+	cc.TintColor = Color3.fromRGB(255, 252, 248)
+	cc.Parent = Lighting
+
+	-- bright skybox: try a toolbox sky, else a clear bright default
 	local gotSky = false
 	local ok, result = pcall(function()
 		return InsertService:LoadAsset(ASSETS.skybox)
@@ -797,23 +800,19 @@ local function setupLighting()
 	end
 	if not gotSky and not Lighting:FindFirstChildOfClass("Sky") then
 		local sky = Instance.new("Sky")
-		sky.SunAngularSize = 14
+		sky.SunAngularSize = 11
 		sky.Parent = Lighting
 	end
 
-	-- subtle bloom + sun rays for the published-game feel
-	if not Lighting:FindFirstChildOfClass("BloomEffect") then
-		local bloom = Instance.new("BloomEffect")
-		bloom.Intensity = 0.5
-		bloom.Size = 24
-		bloom.Threshold = 1.1
-		bloom.Parent = Lighting
-	end
-	if not Lighting:FindFirstChildOfClass("SunRaysEffect") then
-		local rays = Instance.new("SunRaysEffect")
-		rays.Intensity = 0.1
-		rays.Spread = 0.5
-		rays.Parent = Lighting
+	-- gentle bloom for a cheerful glow
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect") or Instance.new("BloomEffect")
+	bloom.Intensity = 0.4
+	bloom.Size = 20
+	bloom.Threshold = 1.4
+	bloom.Parent = Lighting
+	local rays = Lighting:FindFirstChildOfClass("SunRaysEffect")
+	if rays then
+		rays:Destroy()
 	end
 end
 
@@ -975,6 +974,37 @@ local function buildHub(world: Instance): (SurfaceGui, SurfaceGui)
 	} do
 		part({ Name = "VaultWall", Size = def.s, Position = Vector3.new(center.X + def.p.X, floorY + H / 2, center.Z + def.p.Z), Color = cream, Material = Enum.Material.Marble, Parent = hub })
 	end
+
+	-- bright white point lights every ~40 studs so nothing feels gloomy
+	for gx = -80, 80, 40 do
+		for gz = -80, 80, 40 do
+			local lp = part({ Name = "VaultLight", Size = Vector3.new(1.5, 0.4, 1.5), Position = Vector3.new(center.X + gx, floorY + H - 2, center.Z + gz), Color = Color3.fromRGB(255, 255, 245), Material = Enum.Material.Neon, CanCollide = false, Parent = hub })
+			pointLight(lp, Color3.fromRGB(255, 255, 255), 3, 30)
+		end
+	end
+	-- bright cyan glow on the fountain
+	local fglow = part({ Name = "FountainGlow", Size = Vector3.new(2, 2, 2), Position = center + Vector3.new(0, 6, 34), Transparency = 1, CanCollide = false, Parent = hub })
+	pointLight(fglow, Color3.fromRGB(90, 210, 255), 4, 36)
+	-- rainbow particle burst near the spawn entrance
+	local rb = part({ Name = "RainbowFX", Size = Vector3.new(1, 1, 1), Position = WorldConfig.Hub.spawn.Position + Vector3.new(0, 4, 0), Transparency = 1, CanCollide = false, Parent = hub })
+	local rbAtt = Instance.new("Attachment")
+	rbAtt.Parent = rb
+	local rbEm = Instance.new("ParticleEmitter")
+	rbEm.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 90, 90)),
+		ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 210, 90)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(110, 230, 120)),
+		ColorSequenceKeypoint.new(0.75, Color3.fromRGB(90, 180, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 120, 255)),
+	})
+	rbEm.LightEmission = 1
+	rbEm.Rate = 30
+	rbEm.Lifetime = NumberRange.new(1.5, 2.5)
+	rbEm.Speed = NumberRange.new(4, 7)
+	rbEm.SpreadAngle = Vector2.new(40, 40)
+	rbEm.Acceleration = Vector3.new(0, 3, 0)
+	rbEm.Size = NumberSequence.new(0.7)
+	rbEm.Parent = rbAtt
 
 	return boardGui, tickerGui
 end
@@ -1584,19 +1614,7 @@ function WorldBuilder.build(): { board: SurfaceGui, recentTicker: SurfaceGui, fa
 		end
 	end
 
-	-- slow day/night cycle: one full sweep every 10 minutes
-	task.spawn(function()
-		local CYCLE = 600 -- seconds for a full 24h
-		while world.Parent do
-			local t = (os.clock() % CYCLE) / CYCLE -- 0..1
-			Lighting.ClockTime = t * 24
-			-- warm at dawn/dusk, cooler at night
-			local night = math.clamp(math.abs(Lighting.ClockTime - 12) / 12, 0, 1)
-			Lighting.Brightness = 2.4 - night * 1.2
-			Lighting.OutdoorAmbient = Color3.fromRGB(90, 80, 70):Lerp(Color3.fromRGB(40, 40, 60), night)
-			task.wait(1)
-		end
-	end)
+	-- (day/night cycle removed — The Vault stays bright and welcoming)
 
 	return { board = board, recentTicker = ticker, fameBoard = fameBoard }
 end
