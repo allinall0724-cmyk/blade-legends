@@ -145,7 +145,7 @@ function MainHUD.build(ctx: any)
 			coinLabel.Text = "🪙 " .. tostring(data.coins)
 		end
 		if data.tier then
-			rankLabel.Text = ("%s • %d"):format(data.tier, math.floor(data.rating or 0))
+			rankLabel.Text = ("🛡 %s • %d"):format(data.tier, math.floor(data.rating or 0))
 			if data.tierColor then
 				rankLabel.TextColor3 = data.tierColor
 			end

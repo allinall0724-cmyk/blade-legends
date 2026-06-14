@@ -8,6 +8,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Net = require(ReplicatedStorage.Shared.Net)
+local RankConfig = require(ReplicatedStorage.Shared.RankConfig)
+
+local SoundController = require(script.Parent.SoundController)
 
 local uiFolder = script.Parent.Parent.UI
 local UIKit = require(uiFolder.UIKit)
@@ -19,6 +22,8 @@ local Leaderboard = require(uiFolder.Leaderboard)
 local RankedQueue = require(uiFolder.RankedQueue)
 local Trade = require(uiFolder.Trade)
 local AbilityBar = require(uiFolder.AbilityBar)
+local LoadingScreen = require(uiFolder.LoadingScreen)
+local Settings = require(uiFolder.Settings)
 
 local UIManager = {}
 
@@ -33,12 +38,16 @@ function UIManager.init()
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.Parent = player:WaitForChild("PlayerGui")
 
+	-- intro loading screen
+	LoadingScreen.show()
+
 	local ctx = {
 		root = gui,
 		event = Net.event,
 		func = Net.func,
 		-- shared client state read by several screens
 		state = { inCombat = false, equippedId = nil :: number? },
+		sound = SoundController,
 		offerToTrade = function(weaponId: number)
 			if screens.trade then
 				screens.trade.offer(weaponId)
@@ -56,6 +65,7 @@ function UIManager.init()
 	screens.ranked = RankedQueue.build(ctx)
 	screens.trade = Trade.build(ctx)
 	screens.abilities = AbilityBar.build(ctx)
+	screens.settings = Settings.build(ctx)
 
 	-- ===== transient UI =====
 	-- notifications (stack, bottom-left above hotkey strip)
@@ -144,11 +154,32 @@ function UIManager.init()
 	end
 
 	-- ===== remote routing =====
+	local welcomed = false
+	local prevEquippedId: number? = nil
+	local prevTierMin = -1
 	Net.event("UpdateHUD").OnClientEvent:Connect(function(data)
 		screens.hud.update(data)
 		screens.ranked.updateRank(data)
+
+		-- equip sound when the equipped weapon changes
+		local newId = data.equipped and data.equipped.id or nil
+		if newId and newId ~= prevEquippedId and prevEquippedId ~= nil then
+			SoundController.play("equip", 0.7)
+		end
+		prevEquippedId = newId
+
+		-- rank-up detection: tier jumped up
+		if data.rating then
+			local tier = RankConfig.getTier(data.rating)
+			if prevTierMin >= 0 and tier.min > prevTierMin then
+				SoundController.play("rankUp")
+				announce({ text = "RANK UP! You reached " .. tier.name, color = tier.color })
+			end
+			prevTierMin = tier.min
+		end
+
 		-- update shared state for the inventory (equipped badge + combat lock)
-		ctx.state.equippedId = data.equipped and data.equipped.id or nil
+		ctx.state.equippedId = newId
 		if data.inCasual ~= nil then
 			ctx.state.inCombat = data.inCasual == true
 		end
@@ -158,11 +189,23 @@ function UIManager.init()
 		if screens.abilities and screens.abilities.onHud then
 			screens.abilities.onHud(data)
 		end
+
+		-- one-time welcome message
+		if not welcomed then
+			welcomed = true
+			task.delay(3.2, function()
+				announce({
+					text = "Welcome to Blade Legends! Open cases, fight in arenas, climb the leaderboard!",
+					color = UIKit.Colors.accent,
+				})
+			end)
+		end
 	end)
 	Net.event("Notification").OnClientEvent:Connect(notify)
 	Net.event("Announcement").OnClientEvent:Connect(announce)
 	Net.event("KillFeed").OnClientEvent:Connect(killFeed)
 	Net.event("CaseResult").OnClientEvent:Connect(function(data)
+		SoundController.play("caseOpen", 0.7)
 		screens.cases.open()
 		screens.cases.onResult(data)
 		-- a new weapon arrived: refresh the inventory grid so it shows up
@@ -194,6 +237,53 @@ function UIManager.init()
 	end)
 	Net.event("AbilityFlash").OnClientEvent:Connect(function(data)
 		screens.abilities.onFlash(data)
+	end)
+
+	-- kill popup ("+1 Kill — +N Coins")
+	Net.event("KillNotify").OnClientEvent:Connect(function(data)
+		SoundController.play("kill", 0.8)
+		local txt = "+1 Kill"
+		if data and data.coins then
+			txt ..= ("  —  +%d Coins"):format(data.coins)
+		end
+		local pop = UIKit.create("TextLabel", {
+			Size = UDim2.fromOffset(360, 50),
+			Position = UDim2.new(0.5, -180, 0.32, 0),
+			BackgroundTransparency = 1,
+			Font = Enum.Font.GothamBlack,
+			TextScaled = true,
+			TextColor3 = Color3.fromRGB(255, 230, 120),
+			TextStrokeTransparency = 0.3,
+			Text = txt,
+			Parent = gui,
+		})
+		TweenService:Create(pop, TweenInfo.new(1.2), { Position = UDim2.new(0.5, -180, 0.24, 0), TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		task.delay(1.3, function()
+			pop:Destroy()
+		end)
+	end)
+
+	-- combo counter ("COMBO xN!")
+	local comboLabel = UIKit.create("TextLabel", {
+		Size = UDim2.fromOffset(300, 56),
+		Position = UDim2.new(0.5, -150, 0.18, 0),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBlack,
+		TextScaled = true,
+		TextColor3 = Color3.fromRGB(255, 120, 90),
+		TextStrokeTransparency = 0.3,
+		TextTransparency = 1,
+		Text = "",
+		Parent = gui,
+	})
+	Net.event("ComboUpdate").OnClientEvent:Connect(function(data)
+		local count = data and data.count or 0
+		if count >= 3 then
+			comboLabel.Text = ("COMBO x%d!"):format(count)
+			comboLabel.TextTransparency = 0
+			comboLabel.TextStrokeTransparency = 0.3
+			TweenService:Create(comboLabel, TweenInfo.new(1.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		end
 	end)
 
 	-- ask the server for an initial HUD snapshot

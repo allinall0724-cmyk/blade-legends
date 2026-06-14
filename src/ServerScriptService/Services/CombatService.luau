@@ -341,6 +341,10 @@ end
 
 CombatService._lastAttacker = {} :: { [number]: Player? }
 
+-- forward-declared shared damage path (defined in the abilities section below;
+-- assigned at module load, well before any swing is processed at runtime)
+local dealDamage: (attacker: Player, victim: Player, amount: number, color: Color3?) -> boolean
+
 -- ---------------------------------------------------------------------------
 -- Swing handling: pure server-side hitbox.
 -- ---------------------------------------------------------------------------
@@ -391,25 +395,9 @@ local function handleSwing(player: Player)
 			end
 		end
 
-		-- target defensive state
-		local oState = getState(other)
-		if now < oState.dodgeUntil then
-			continue -- dodged: invulnerable
-		end
-		local dmg = info.damage
-		if oState.blocking then
-			dmg *= (1 - BLOCK_REDUCTION)
-		end
-
-		CombatService._lastAttacker[other.UserId] = player
-		ohum:TakeDamage(dmg)
-
-		Net.event("Notification"):FireClient(player, {
-			text = ("Hit %s for %d"):format(other.DisplayName, math.floor(dmg)),
-			color = info.rarityColor,
-			duration = 0.8,
-			small = true,
-		})
+		-- all defensive handling (dodge i-frames, block, invincibility/reflect,
+		-- counter), damage numbers and combo tracking live in dealDamage
+		dealDamage(player, other, info.damage, info.rarityColor)
 	end
 end
 
@@ -483,8 +471,9 @@ local function comboHit(attacker: Player)
 	Net.event("ComboUpdate"):FireClient(attacker, { count = s.comboCount })
 end
 
--- the single authoritative damage path used by every ability
-local function dealDamage(attacker: Player, victim: Player, amount: number, color: Color3?): boolean
+-- the single authoritative damage path used by swings and every ability
+-- (assigns the forward-declared upvalue above so handleSwing can use it)
+function dealDamage(attacker: Player, victim: Player, amount: number, color: Color3?): boolean
 	local now = os.clock()
 	local oc = victim.Character
 	local ohrp = oc and oc:FindFirstChild("HumanoidRootPart") :: BasePart?

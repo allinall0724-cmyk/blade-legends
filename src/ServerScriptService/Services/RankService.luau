@@ -178,6 +178,7 @@ local function onKill(killer: Player?, victim: Player)
 	if kProf then
 		kProf.totalKills += 1
 	end
+	Net.event("KillNotify"):FireClient(killer, {})
 
 	if m.scoreA >= WIN_KILLS then
 		endMatch(m, m.a, m.b)

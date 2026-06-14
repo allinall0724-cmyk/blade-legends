@@ -99,13 +99,19 @@ API access; silently falls back to the part build if unavailable):
 |---|---|
 | LMB | Swing (server-side hitbox) |
 | Hold RMB | Block (50% damage reduction, slows you) |
-| Q | Dodge roll (i-frames) |
+| Left Shift | Dodge roll (i-frames) |
+| Q / E / R / F / G | Abilities: Power Strike / Dash Strike / Area Slam / Special / Ultimate (unlock by rarity) |
 | I | Inventory |
 | C | Cases |
 | B | Shop |
 | L | Leaderboard |
 | K | Arenas (ranked queue + casual join) |
-| E | Trade nearest player |
+| T | Trade nearest player |
+| P / ⚙ | Settings (music & SFX volume) |
+
+Abilities unlock by weapon rarity: Common = swing only, Uncommon adds Power Strike (Q),
+Rare adds Dash Strike (E), Epic adds Area Slam (R), Legendary adds a per-type Special (F),
+Mythic adds a passive aura + a per-type Ultimate (G). All ability damage is server-side.
 
 ## Going live (monetization)
 

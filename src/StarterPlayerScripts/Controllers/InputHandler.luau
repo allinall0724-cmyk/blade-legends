@@ -18,6 +18,7 @@ local KEYMAP = {
 	[Enum.KeyCode.L] = "leaderboard",
 	[Enum.KeyCode.C] = "cases",
 	[Enum.KeyCode.K] = "ranked",
+	[Enum.KeyCode.P] = "settings",
 }
 
 function InputHandler.init()

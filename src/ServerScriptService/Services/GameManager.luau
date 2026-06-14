@@ -106,6 +106,7 @@ local function onKillCasual(killer: Player?, victim: Player)
 	if kProf then
 		kProf.totalKills += 1
 	end
+	Net.event("KillNotify"):FireClient(killer, { coins = KILL_COINS })
 	pushHud(killer)
 
 	Net.event("KillFeed"):FireAllClients({

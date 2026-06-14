@@ -38,6 +38,7 @@ Net.Events = {
 	"AbilityState",      -- server -> client : {slot, remaining, duration} cooldown UI
 	"AbilityFlash",      -- server -> client : {name, color} ability-name flash
 	"ComboUpdate",       -- server -> client : {count} combo counter
+	"KillNotify",        -- server -> client : {coins?} you-got-a-kill popup
 }
 
 -- RemoteFunctions (request/response).
